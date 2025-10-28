@@ -1,5 +1,5 @@
 `timescale 1ns/1ps
-module tb_skid_buffer;
+module tb_skid_buffer_struct;
 
   // === Payload type for this test ===
   typedef logic [15:0] T_t;
@@ -24,7 +24,7 @@ module tb_skid_buffer;
   logic     vout; T_t dout; logic ready_sink;
 
   // === Device(s) under test: 3 skids in series ===
-  skid_buffer #(.T(T_t)) skid0 (
+  skid_buffer_struct #(.T(T_t)) skid0 (
     .clk, .reset,
     .valid_in (valid_src),
     .ready_in (ready_src),
@@ -35,7 +35,7 @@ module tb_skid_buffer;
     .data_out (d01)
   );
 
-  skid_buffer #(.T(T_t)) skid1 (
+  skid_buffer_struct #(.T(T_t)) skid1 (
     .clk, .reset,
     .valid_in (v01),
     .ready_in (r01),
@@ -46,7 +46,7 @@ module tb_skid_buffer;
     .data_out (d12)
   );
 
-  skid_buffer #(.T(T_t)) skid2 (
+  skid_buffer_struct #(.T(T_t)) skid2 (
     .clk, .reset,
     .valid_in (v12),
     .ready_in (r12),

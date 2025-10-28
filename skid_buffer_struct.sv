@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module skid_buffer #(
+module skid_buffer_struct #(
     parameter type T = logic 
     )(
     input logic     clk,
