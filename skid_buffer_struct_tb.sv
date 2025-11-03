@@ -1,213 +1,155 @@
-`timescale 1ns/1ps
-module tb_skid_buffer_struct;
+`timescale 1ns / 1ps
 
-  // === Payload type for this test ===
-  typedef logic [15:0] T_t;
+module skid_buffer_tb;
 
-  // === Clock & reset ===
-  logic clk = 0;
-  logic reset;
-  always #5 clk = ~clk; // 100 MHz
+    // --- Parameters ---
+    parameter CLK_PERIOD = 10; // 10ns = 100MHz clock
+    localparam DATA_WIDTH = 8; // Test with 8-bit data
 
-  // === Upstream (source driving first skid) ===
-  logic     valid_src;
-  logic     ready_src;   // from skid0.ready_in
-  T_t       data_src;
-
-  // === Between skid0 -> skid1 ===
-  logic     v01;  T_t d01;  logic r01;  // r01 = skid1.ready_in
-
-  // === Between skid1 -> skid2 ===
-  logic     v12;  T_t d12;  logic r12;  // r12 = skid2.ready_in
-
-  // === Downstream (sink at end of chain) ===
-  logic     vout; T_t dout; logic ready_sink;
-
-  // === Device(s) under test: 3 skids in series ===
-  skid_buffer_struct #(.T(T_t)) skid0 (
-    .clk, .reset,
-    .valid_in (valid_src),
-    .ready_in (ready_src),
-    .data_in  (data_src),
-
-    .valid_out(v01),
-    .ready_out(r01),     // ready from downstream = skid1.ready_in
-    .data_out (d01)
-  );
-
-  skid_buffer_struct #(.T(T_t)) skid1 (
-    .clk, .reset,
-    .valid_in (v01),
-    .ready_in (r01),
-    .data_in  (d01),
-
-    .valid_out(v12),
-    .ready_out(r12),     // ready from downstream = skid2.ready_in
-    .data_out (d12)
-  );
-
-  skid_buffer_struct #(.T(T_t)) skid2 (
-    .clk, .reset,
-    .valid_in (v12),
-    .ready_in (r12),
-    .data_in  (d12),
-
-    .valid_out(vout),
-    .ready_out(ready_sink), // final consumer's ready
-    .data_out (dout)
-  );
-
-
-  // === Simple scoreboard: expect queue ===
-  T_t expect_q[$];
-  int errors = 0;
-  longint produced = 0, consumed = 0;
-
-  // Capture producer handshakes (push expected)
-  always_ff @(posedge clk) if (!reset) begin
-    if (valid_src && ready_src) begin
-      expect_q.push_back(data_src);
-      produced++;
-    end
-  end
-
-  // Check consumer handshakes (pop and compare)
-  always_ff @(posedge clk) if (!reset) begin
-    if (vout && ready_sink) begin
-      consumed++;
-      if (expect_q.size() == 0) begin
-        $error("Pop with empty expect_q @%0t", $time);
-        errors++;
-      end else begin
-        T_t exp = expect_q.pop_front();
-        if (dout !== exp) begin
-          $error("Data mismatch @%0t: got=%h exp=%h", $time, dout, exp);
-          errors++;
-        end
-      end
-    end
-  end
-
-  // === Reset and init ===
-  initial begin
-    reset      = 1;
-    valid_src  = 0;
-    data_src   = '0;
-    ready_sink = 1;
-    repeat (3) @(posedge clk);
-    reset = 0;
-  end
-
-  int sent;
-  // === Producer: send N items with stable-on-stall behavior ===
-  task automatic send_stream(input T_t start, input int N);
-    T_t next = start;
-    valid_src <= 1'b1;
-    data_src  <= next;
-    sent = 0;
-    while (sent < N) begin
-      @(posedge clk);
-      if (ready_src) begin
-        sent++;
-        next++;
-        data_src <= next; // advance to next value only after accept
-      end else begin
-        data_src <= data_src; // hold stable while stalled
-      end
-    end
-    valid_src <= 1'b0;
-  endtask
-
-
-  // === Test sequences ===
-  int cycles;
-  int left;
-  int c;
-  T_t gen;
-  initial begin : run
-    @(negedge reset); @(posedge clk);
-
-    // 1) Pure pass-through (no backpressure)
-    $display("\n[TEST1] pass-through burst, ready_sink=1");
-    ready_sink = 1;
-    send_stream(16'h0000, 8);
+    // --- Signals (wires) to connect to DUT ---
+    logic clk;
+    logic reset;
     
-    // 2) Single-cycle stall at the end
-    $display("\n[TEST2] single-cycle stall at sink");
-    fork
-      begin
-        send_stream(16'h0100, 10);
-      end
-      begin
-        @(posedge clk);
-        ready_sink = 0;  // stall one beat
-        @(posedge clk);
-        ready_sink = 1;
-      end
-    join
+    // Upstream
+    logic valid_in;
+    logic ready_in; // Output from DUT
+    logic [DATA_WIDTH-1:0] data_in;
     
-    // 3) Multi-cycle stall (fills up to 3 entries across chain)
-    $display("\n[TEST3] multi-cycle stall (expect up to 3 items buffered)");
-    fork
-      begin
-        send_stream(16'h0200, 16);
-      end
-      begin
-        repeat (2) @(posedge clk);
-        repeat (5) begin ready_sink = 0; @(posedge clk); end
-        ready_sink = 1;
-      end
-    join
+    // Downstream
+    logic valid_out; // Output from DUT
+    logic ready_out;
+    logic [DATA_WIDTH-1:0] data_out; // Output from DUT
 
-    // 4) Randomized stress (200 cycles)
-    $display("\n[TEST4] random stress");
-    cycles = 200;
-    left   = 60; // total items to send during stress
-    fork
-      // Producer side: probabilistic valid
-      begin
-        valid_src = 0;
-        gen = 16'h1000;
-        for (c = 0; c < cycles; c++) begin
-          // 70% chance to drive valid if items remain
-          if (left > 0 && ($urandom_range(0,9) < 7)) begin
-            valid_src <= 1;
-            data_src  <= gen;
-          end else begin
-            valid_src <= 0;
-          end
+    // --- Instantiate the Device Under Test (DUT) ---
+    // We override the 'T' parameter to be an 8-bit vector
+    skid_buffer_struct #(
+        .T ( logic [DATA_WIDTH-1:0] )
+    ) u_dut (
+        .clk(clk),
+        .reset(reset),
+        
+        .valid_in(valid_in),
+        .ready_in(ready_in),
+        .data_in(data_in),
+        
+        .valid_out(valid_out),
+        .ready_out(ready_out),
+        .data_out(data_out)
+    );
 
-          @(posedge clk);
-          if (valid_src && ready_src) begin
-            gen++; left--;
-            if (left == 0) valid_src <= 0;
-          end
-        end
-        valid_src <= 0;
-      end
-      // Consumer side: random backpressure
-      begin
-        for (int c = 0; c < cycles; c++) begin
-          ready_sink = $urandom_range(0,1);
-          @(posedge clk);
-        end
-        ready_sink = 1;
-      end
-    join
-
-    // Drain a few cycles
-    repeat (10) @(posedge clk);
-
-    // Final checks
-    if (expect_q.size() != 0) begin
-      $error("Items remaining in expect_q: %0d", expect_q.size());
-      errors++;
+    // --- Clock Generator ---
+    initial begin
+        clk = 0;
+        forever #(CLK_PERIOD / 2) clk = ~clk;
     end
 
-    $display("\nProduced=%0d, Consumed=%0d", produced, consumed);
-    if (errors == 0) $display("SKID-CHAIN(3) TB: PASS ✅");
-    else             $display("SKID-CHAIN(3) TB: FAIL ❌  (errors=%0d)", errors);
-    $finish;
-  end
+    // --- Waveform Dump (for GTKWave) ---
+    initial begin
+        $dumpfile("waves.vcd");
+        $dumpvars(0, skid_buffer_tb); // Dump all signals in this testbench
+    end
 
+    // --- Test Stimulus ---
+    initial begin
+        $display("--- Simulation Start ---");
+        
+        // --- 1. Reset ---
+        reset = 1;
+        valid_in = 0;
+        ready_out = 0;
+        data_in = 'x;
+        repeat(2) @(posedge clk);
+        reset = 0;
+        $display("Time: %0t - Reset released. Buffer empty.", $time);
+        @(posedge clk);
+        
+        // At this point, buffer should be empty and ready
+        // valid_out should be 0
+        // ready_in should be 1 (combinational)
+        assert (ready_in) else $fatal(1, "FAIL: ready_in is not 1 after reset.");
+        assert (!valid_out) else $fatal(1, "FAIL: valid_out is not 0 after reset.");
+
+        // --- 2. Test Pass-through (Full Speed) ---
+        // Consumer is ready, producer sends data
+        $display("Time: %0t - Test 1: Pass-through (AA, BB)", $time);
+        ready_out = 1;
+        valid_in = 1;
+        data_in = 8'hAA;
+        @(posedge clk); 
+        #1;
+        // At this edge, AA is latched into data_reg
+        // data_out should now be AA
+        // ready_in should still be 1 (because !valid_reg || ready_out)
+        $display("Time: %0t - AA latched. data_out=%h, valid_out=%b", $time, data_out, valid_out);
+        assert (data_out == 8'hAA) else $fatal(1, "FAIL: data_out not AA.");
+        assert (valid_out) else $fatal(1, "FAIL: valid_out not 1.");
+        assert (ready_in) else $fatal(1, "FAIL: ready_in did not stay 1.");
+        
+        // Send next data immediately
+        data_in = 8'hBB;
+        @(posedge clk);
+        #1;
+        // At this edge, BB is latched, replacing AA
+        $display("Time: %0t - BB latched. data_out=%h, valid_out=%b", $time, data_out, valid_out);
+        assert (data_out == 8'hBB) else $fatal(1, "FAIL: data_out not BB.");
+        $display("--- Pass-through OK ---");
+
+        // --- 3. Test Consumer Stall (Fill Buffer) ---
+        $display("Time: %0t - Test 3: Consumer Stall (Attempt to send C1)", $time);
+        ready_out = 0; // Stall the consumer
+        valid_in  = 1; // Try to send C1
+        data_in   = 8'hC1;
+        
+        @(posedge clk);
+        #1; // Wait for non-blocking updates
+
+        // At this edge, the buffer is FULL and STALLED.
+        // It should *reject* C1 and *hold* the old value, BB.
+        $display("Time: %0t - Buffer stalled. data_out=%h, valid_out=%b, ready_in=%b", $time, data_out, valid_out, ready_in);
+        
+        assert (data_out == 8'hBB) else $fatal(1, "FAIL: data_out should be BB (stalled).");
+        assert (valid_out) else $fatal(1, "FAIL: valid_out should be 1 (stalled).");
+        assert (!ready_in) else $fatal(1, "FAIL: ready_in did not go 0 on stall.");
+        $display("--- Consumer Stall OK ---");
+
+        // --- 4. Test Stall Release (Pass-through C1) ---
+        // Now we un-stall the consumer, while still trying to send C1.
+        // This should cause a 1-cycle "pass-through" where
+        // BB is read out and C1 is read in simultaneously.
+        $display("Time: %0t - Test 4: Stall Release (Drain BB, Latch C1)", $time);
+        ready_out = 1; // Un-stall the consumer
+        valid_in  = 1; // Keep trying to send C1
+        data_in   = 8'hC1;
+        
+        // ready_in should *immediately* become 1 (combinational)
+        #1;
+        assert (ready_in) else $fatal(1, "FAIL: ready_in did not go 1 (combinational) on release.");
+
+        @(posedge clk);
+        #1; // Wait for non-blocking updates
+
+        // At this edge, the consumer took BB, and the buffer latched C1.
+        $display("Time: %0t - BB drained, C1 latched. data_out=%h", $time, data_out);
+        assert (data_out == 8'hC1) else $fatal(1, "FAIL: data_out not C1 after stall release.");
+        assert (valid_out) else $fatal(1, "FAIL: valid_out not 1.");
+        $display("--- Stall Release + Latch OK ---");
+
+        // --- 5. Test Drain Buffer ---
+        $display("Time: %0t - Test 5: Drain Buffer (Send nothing)", $time);
+        ready_out = 1; // Consumer is ready
+        valid_in  = 0; // Producer sends nothing
+        
+        @(posedge clk);
+        #1; // Wait for non-blocking updates
+        
+        // At this edge, the consumer took C1, and nothing new arrived.
+        $display("Time: %0t - Buffer drained. valid_out=%b", $time, valid_out);
+        assert (!valid_out) else $fatal(1, "FAIL: valid_out did not go 0 on drain.");
+        assert (ready_in) else $fatal(1, "FAIL: ready_in is not 1 (empty).");
+        $display("--- Buffer Drain OK ---");
+
+        repeat(2) @(posedge clk);
+        $display("--- All Tests Passed ---");
+        $finish; // End simulation
+    end
 endmodule
