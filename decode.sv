@@ -4,25 +4,25 @@ module decode(
     input logic clk,
     input logic reset,
 
-    // upstream
+    // Upstream
     input logic [31:0] instr,
     input logic [31:0] pc_in,
     input logic valid_in,
     output logic ready_in,
 
-    // downstream
+    // Downstream
     input logic ready_out,
     output logic [31:0] pc_out,
     output logic valid_out,
 
-    // decoded signal
+    // Decoded signal
     output logic [4:0] rs1,
     output logic[4:0] rs2,
     output logic [4:0] rd,
     output logic [31:0] imm,
     output logic [2:0] ALUOp,
     output logic [6:0] OpCode
-    // harzard detect signal?
+    // Harzard detect signal?
     );
     
     // Buffered signals
@@ -136,7 +136,7 @@ module decode(
             ALUOp_buf <= 3'b0;
             OpCode_buf <= 7'b0;
         end else begin
-            // handle upstream
+            // Handle upstream
             if (valid_in && ready_in) begin
                 pc_buf <= pc_in;
                 valid_out_buf <= 1'b1;
@@ -148,7 +148,7 @@ module decode(
                 imm_buf <= imm_next;
                 ALUOp_buf <= ALUOp_next;
             end else if (ready_out && valid_out) begin
-            // handle downstream
+            // Handle downstream
                 valid_out_buf <= 1'b0;
             end
         end
