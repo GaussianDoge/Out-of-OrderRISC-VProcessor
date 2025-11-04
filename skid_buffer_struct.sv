@@ -17,45 +17,26 @@ module skid_buffer_struct #(
     output T        data_out
     );
     
-    // Flip-Flops for storage
-    T       data_reg;
-    logic   valid_reg;
+    // downstream
+    logic   valid_out_sig;
+    T       buffer;
 
-    // --- Combinational Logic ---
-
-    // We are ready to accept new data IF:
-    assign ready_in = !valid_reg || ready_out;
+    assign ready_in = ready_out || !valid_out_sig;
+    assign valid_out = valid_out_sig;
+    assign data_out = valid_out_sig ? buffer : data_in;
     
-    // The output is valid if our register is valid
-    assign valid_out = valid_reg;
-    
-    // The output data is just our registered data
-    assign data_out = data_reg;
-    
-    
-    // --- Sequential Logic ---
-    
-    always_ff @(posedge clk) begin
+    always @ (posedge clk) begin
         if (reset) begin
-            valid_reg <= 1'b0;
-            data_reg  <= '0; // Use '0 to assign all bits to 0
-        end 
-        else if (ready_in && valid_in) begin
-            // **Load/Replace:** A new valid item is arriving AND we can accept it.
-            // This single case handles:
-            // 1. Empty -> Full (loading)
-            // 2. Full -> Full (replacing)
-            valid_reg <= 1'b1;
-            data_reg  <= data_in;
-        end 
-        else if (ready_out) begin
-            // **Clear:** No new item is arriving (because ready_in&&valid_in was false),
-            // but the consumer is clearing us.
-            valid_reg <= 1'b0;
+            valid_out_sig <= 1'b0;
+            buffer <= 0;
+        end else begin
+            // handle upstream
+            if (valid_in && ready_in) begin
+                buffer <= data_in;
+                valid_out_sig <= 1'b1;
+            end else if (ready_out) begin
+                valid_out_sig <= 1'b0;
+            end 
         end
-        // **Stall:** If none of the above is true, it means:
-        // We are full and the consumer is not ready.
-        // We simply hold our values (valid_reg and data_reg).
     end
-    
 endmodule
