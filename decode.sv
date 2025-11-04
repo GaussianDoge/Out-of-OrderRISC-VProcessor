@@ -21,7 +21,7 @@ module decode(
     output logic [4:0] rd,
     output logic [31:0] imm,
     output logic [2:0] ALUOp,
-    output logic [6:0] OpCode
+    output logic [6:0] opcode
     // Harzard detect signal?
     );
     
@@ -34,7 +34,7 @@ module decode(
     logic [4:0] rd_buf;
     logic [31:0] imm_buf;
     logic [2:0] ALUOp_buf;
-    logic [6:0] OpCode_buf;
+    logic [6:0] opcode_buf;
 
     //  Future signals
     logic [4:0] rs1_next;
@@ -42,7 +42,7 @@ module decode(
     logic [4:0] rd_next;
     logic [31:0] imm_next;
     logic [2:0] ALUOp_next;
-    logic [6:0] OpCode_next;
+    logic [6:0] opcode_next;
     
     // Combinational Section
     assign pc_out = pc_buf;
@@ -53,16 +53,16 @@ module decode(
     assign rd = rd_buf;
     assign imm = imm_buf;
     assign ALUOp = ALUOp_buf;
-    assign OpCode = OpCode_buf;
+    assign opcode = opcode_buf;
 
     ImmGen immgen_dut (
-        .instruction(instr),
+        .instr(instr),
         .imm(imm_next)
     );
 
     always_comb begin
-        OpCode_next = instr[6:0];
-        case (OpCode_next)
+        opcode_next = instr[6:0];
+        case (opcode_next)
             // imm_next is already calculated by immgen_dut
             // I-type instructions
             7'b0010011: begin
@@ -134,7 +134,7 @@ module decode(
             rd_buf <= 5'b0;
             imm_buf<= 32'b0;
             ALUOp_buf <= 3'b0;
-            OpCode_buf <= 7'b0;
+            opcode_buf <= 7'b0;
         end else begin
             // Handle upstream
             if (valid_in && ready_in) begin
@@ -144,7 +144,7 @@ module decode(
                 rs1_buf <= rs1_next;
                 rs2_buf <= rs2_next;
                 rd_buf <= rd_next;
-                OpCode_buf <= OpCode_next;
+                opcode_buf <= opcode_next;
                 imm_buf <= imm_next;
                 ALUOp_buf <= ALUOp_next;
             end else if (ready_out && valid_out) begin
