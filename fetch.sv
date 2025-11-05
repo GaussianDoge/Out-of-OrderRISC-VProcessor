@@ -8,7 +8,7 @@ module fetch(
     input logic [31:0] PC_in,
 
     // Downstream
-    input logic ready_in,
+    input logic ready_out,
     output logic [31:0] instr_out,
     output logic [31:0] PC_out,
     output logic [31:0] PC_4,
@@ -42,7 +42,7 @@ module fetch(
             PC_buf <= 32'b0;
         end else begin
             // Handle Upstream
-            if (!valid_out_buf || ready_in) begin
+            if (!valid_out_buf || ready_out) begin
                 valid_out_buf <= 1'b1;
                 PC_buf <= PC_in;
                 instr_buf <= instr_icache;
