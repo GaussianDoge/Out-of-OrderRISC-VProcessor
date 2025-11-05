@@ -60,71 +60,16 @@ module decode(
         .imm(imm_next)
     );
 
-    always_comb begin
-        opcode_next = instr[6:0];
-        case (opcode_next)
-            // imm_next is already calculated by immgen_dut
-            // I-type instructions
-            7'b0010011: begin
-                rs1_next = instr[19:15];
-                rs2_next = 5'b0;
-                rd_next = instr[11:7];
-                ALUOp_next = 3'b011;
-            end
-            // LUI
-            7'b0110111: begin
-                rs1_next = 5'b0;
-                rs2_next = 5'b0;
-                rd_next = instr[11:7];
-                ALUOp_next = 3'b100;
-            end
-            // R-type instructions
-            7'b0110011: begin
-                rs1_next = instr[19:15];
-                rs2_next = instr[24:20];
-                rd_next = instr[11:7];
-                ALUOp_next = 3'b010;
-            end
-            // Load instructions excluding LUI 
-            7'b0000011: begin
-                rs1_next = instr[19:15];
-                rs2_next = 5'b0;
-                rd_next = instr[11:7];
-                ALUOp_next = 3'b000;
-            end
-            // S-type instructions
-            7'b0100011: begin
-                rs1_next = instr[19:15];
-                rs2_next = instr[24:20];
-                rd_next = 5'b0;
-                ALUOp_next = 3'b000;
-            end
-            // BNE
-            7'b1100011: begin
-                rs1_next = instr[19:15];
-                rs2_next = instr[24:20];
-                rd_next = 5'b0;
-                ALUOp_next = 3'b001;
-            end
-            // JALR
-            7'b1100111: begin
-                rs1_next = instr[19:15];
-                rs2_next = 5'b0;
-                rd_next = instr[11:7];
-                ALUOp_next = 3'b110;
-            end
-            // For other unknown OPcodes
-            default: begin
-                rs1_next = 5'b0;
-                rs2_next = 5'b0;
-                rd_next = 5'b0;
-                ALUOp_next = 3'b0;
-            end
-        endcase
-    end
+    signal_decode decoder(
+        .instr(instr),
+        .rs1(rs1_next),
+        .rs2(rs2_next),
+        .rd(rd_next),
+        .ALUOp(ALUOp_next),
+        .opcode(opcode_next)
+    );
 
-    // Skid Buffer
-    always_ff @ (posedge clk) begin
+    always_comb begin
         if (reset) begin
             pc_buf <= 32'b0;
             valid_out_buf <= 1'b0;
@@ -141,6 +86,7 @@ module decode(
                 pc_buf <= pc_in;
                 valid_out_buf <= 1'b1;
                 
+                // all signals handled by decoder and immGen
                 rs1_buf <= rs1_next;
                 rs2_buf <= rs2_next;
                 rd_buf <= rd_next;
