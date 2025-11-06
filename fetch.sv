@@ -5,48 +5,65 @@ module fetch(
     input logic reset,
     
     // Upstream 
-    input logic [31:0] PC_in,
+    input logic [31:0] pc_in,
 
     // Downstream
     input logic ready_out,
     output logic [31:0] instr_out,
-    output logic [31:0] PC_out,
-    output logic [31:0] PC_4,
+    output logic [31:0] pc_out,
+    output logic [31:0] pc_4,
     output logic valid_out
 );
 
-    // Buffered signals
-    logic [31:0] PC_buf;
-    logic [31:0] instr_buf;
-    logic valid_out_buf;
-    
     logic [31:0] instr_icache;
+
+
+    // This will be used to pass in and out of the skid buffer
+    logic [63:0] data_next;
     
     ICache ICache_dut (
         .clk(clk),
         .reset(reset),
-        .address(PC_in),
+        .address(pc_in),
         .instruction(instr_icache)
     );
     
-    // Combinational section
-    assign PC_out = PC_buf;
-    assign PC_4 = PC_buf + 32'd4;
-    assign valid_out = valid_out_buf;
-    assign instr_out = instr_buf;
+    assign data_next = {pc_in, instr_icache};
+
+    // Buffered signal
+    logic [63:0] data_buf;
+
+    // Create a 1-cycle delayed "always valid" signal
+    logic valid_in_delayed;
     
     always_ff @(posedge clk) begin
         if (reset) begin
-            valid_out_buf <= 1'b0;  
-            instr_buf <= 32'b0;
-            PC_buf <= 32'b0;
+            valid_in_delayed <= 1'b0;
         end else begin
-            // Handle Upstream
-            if (!valid_out_buf || ready_out) begin
-                valid_out_buf <= 1'b1;
-                PC_buf <= PC_in;
-                instr_buf <= instr_icache;
-            end
+            valid_in_delayed <= 1'b1;
         end
     end
+
+    skid_buffer_struct #(
+        .T ( logic [63:0] )
+    ) fetch_decode_buffer (
+        .clk        (clk),
+        .reset      (reset),
+        
+        .valid_in   (valid_in_delayed),
+        .ready_in   (),
+        .data_in    (data_next),
+        
+        .valid_out  (valid_out),
+        .ready_out  (ready_out),
+        .data_out   (data_buf)
+    );
+
+    // Unpacking the buffered data
+    assign pc_out    = data_buf[63:32];
+    assign instr_out = data_buf[31:0];
+
+    // Incrementing PC
+    assign pc_4 = pc_out + 32'd4;
+
 endmodule
