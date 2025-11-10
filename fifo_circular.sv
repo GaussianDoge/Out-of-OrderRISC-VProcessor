@@ -1,4 +1,4 @@
-module fifo #(
+module circular_buffer #(
   parameter type T = logic [31:0],
   parameter int  DEPTH = 8
 )(
@@ -13,10 +13,10 @@ module fifo #(
   output logic empty
 );
 
-  T               mem [DEPTH];          // 0..DEPTH-1
-  logic [3:0]  w_ptr, r_ptr;         // address pointers
-  logic [3:0]    ctr;                  // 0..DEPTH
-  T               r_data_q;
+  T mem [DEPTH];       
+  logic [3:0]  w_ptr, r_ptr;      
+  logic [3:0]  ctr;            
+  T r_data_q;
 
   assign read_data = r_data_q;
   assign full  = (ctr == DEPTH);
@@ -45,8 +45,8 @@ module fifo #(
 
       unique case ({do_write, do_read})
         2'b10: if (ctr < DEPTH) ctr <= ctr + 1'b1;
-        2'b01:               ctr <= ctr - 1'b1;    
-        default:             ctr <= ctr;          
+        2'b01: ctr <= ctr - 1'b1;    
+        default: ctr <= ctr;          
       endcase
     end
   end
