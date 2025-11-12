@@ -51,20 +51,21 @@ module rob (
             end
         end else begin
             valid_retired <= 1'b0;
+            // Update the complete column for a specific instruction
             if (complete_in && rob_table[rob_fu].valid) begin
                 rob_table[rob_fu].complete <= 1'b1;
             end
+            // Mispredict operation
             if (mispredict) begin
-                automatic logic [4:0] old_w      = w_ptr;              // snapshot tail
-                automatic logic [4:0] branch_idx = mispredict_tag;     // snapshot branch
-                automatic logic [4:0] start      = (branch_idx==15)?0:branch_idx+1;  // branch+1
-                automatic logic [4:0] newcnt = (start >= r_ptr) ? (start - r_ptr) : (5'd16 - r_ptr + start);
+                automatic logic [4:0] old_w = w_ptr;            
+                automatic logic [4:0] re_ptr = (mispredict_tag==15)?0:mispredict_tag+1;  
+                automatic logic [4:0] newcnt = (re_ptr >= r_ptr) ? (re_ptr - r_ptr) : (5'd16 - r_ptr + re_ptr);
         
-                for (int k=0, logic [4:0] i=start; (i!=old_w)&&(k<16); i=(i==15)?0:i+1, k++) begin
+                for (logic [4:0] i=re_ptr; i!=old_w; i=(i==15)?0:i+1) begin
                     rob_table[i] <= '0;
                 end
                 
-                w_ptr <= start;
+                w_ptr <= re_ptr;
                 ctr <= newcnt;
             end
             else begin
@@ -76,6 +77,8 @@ module rob (
                     rob_table[r_ptr] <= '0;
                     r_ptr <= (r_ptr == 5'd15) ? 5'b0 : r_ptr + 1;
                 end
+                
+                // Dispatch instruction to ROB
                 if (do_write) begin
                     rob_table[w_ptr].pd_new <= pd_new_in;
                     rob_table[w_ptr].pd_old <= pd_old_in;
@@ -86,9 +89,9 @@ module rob (
                     w_ptr <= (w_ptr == 5'd15) ? 5'b0 : w_ptr + 1;
                 end
                 unique case ({do_retire, do_write})
-                  2'b10: ctr <= ctr - 5'd1; 
+                  2'b10: ctr <= ctr - 5'd1;
                   2'b01: ctr <= ctr + 5'd1; 
-                  default: ctr <= ctr;   
+                  default: ctr <= ctr;     
                 endcase
             end
         end
