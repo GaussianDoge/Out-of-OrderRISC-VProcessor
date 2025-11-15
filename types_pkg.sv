@@ -17,17 +17,17 @@ package types_pkg;
     
     typedef struct packed {
         // ALUOp will be sent directly to dispatch stage
-        logic [7:0] ps1;
-        logic [7:0] ps2;
-        logic [7:0] pd_new;
-        logic [7:0] pd_old;
+        logic [6:0] ps1;
+        logic [6:0] ps2;
+        logic [6:0] pd_new;
+        logic [6:0] pd_old;
         logic [32:0] imm;
         logic [4:0] rob_tag;
     } rename_data;
     
     typedef struct packed {
-        logic [7:0] pd_new;
-        logic [7:0] pd_old;
+        logic [6:0] pd_new;
+        logic [6:0] pd_old;
         logic [31:0] pc;
         logic complete;
         logic [4:0] rob_index;
@@ -36,10 +36,10 @@ package types_pkg;
     
     typedef struct packed {
         logic [6:0] Opcode;
-        logic [7:0] prd;
-        logic [7:0] pr1;
+        logic [6:0] prd;
+        logic [6:0] pr1;
         logic pr1_ready;
-        logic [7:0] pr2;
+        logic [6:0] pr2;
         logic pr2_ready;
         logic [31:0] imm;
         logic [3:0] rob_index;
@@ -48,10 +48,10 @@ package types_pkg;
     typedef struct packed {
         logic valid;
         logic [6:0] Opcode;
-        logic [7:0] prd;
-        logic [7:0] pr1;
+        logic [6:0] prd;
+        logic [6:0] pr1;
         logic pr1_ready;
-        logic [7:0] pr2;
+        logic [6:0] pr2;
         logic pr2_ready;
         logic [31:0] imm;
         logic [1:0] fu;
