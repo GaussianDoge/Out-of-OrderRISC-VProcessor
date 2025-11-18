@@ -1,23 +1,4 @@
 `timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 11/09/2025 07:52:52 PM
-// Design Name: 
-// Module Name: rename
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
 
 import types_pkg::*;
 
@@ -46,20 +27,20 @@ module rename(
     logic write_en;
     logic read_en;
     logic update_en;     
-    logic [7:0] preg;
+    logic [6:0] preg;
     logic empty;
     
     // ROB Tag
-    logic [7:0] ctr = 8'b0;
+    logic [3:0] ctr = 4'b0;
     
     // Support mispeculation 
-    logic [7:0] re_map [0:31];
-    logic [7:0] re_preg;
+    logic [6:0] re_map [0:31];
+    logic [6:0] re_preg;
 
-    logic [7:0] map [0:31];
+    logic [6:0] map [0:31];
     
     // Speculation is 1 when we encounter a branch instruction
-    logic spec = (data_in.ALUOp == 7'b1100011);
+    wire branch = (data_in.Opcode == 7'b1100011);
         
     assign ready_in = ready_out && (!empty || !write_pd);
     assign read_en = write_pd && rename_en;
@@ -69,7 +50,7 @@ module rename(
     
     always_ff @(posedge clk) begin
         if (reset) begin
-            ctr <= 8'b0;
+            ctr <= 4'b0;
             data_out.imm <= '0;
             data_out.pd_old <= '0;
             data_out.pd_new <= '0;
@@ -85,8 +66,12 @@ module rename(
                 valid_out_delayed <= 1'b1;
             end
             valid_out <= valid_out_delayed;
+            if (valid_in && ready_in && branch) begin
+                re_preg <= preg;
+                re_map <= map;
+            end
             if (rename_en) begin
-                ctr <= ctr + 1'b1;
+                ctr <= (ctr == 15) ? 0 : ctr + 1;
                 data_out.ps1 <= map[data_in.rs1];
                 data_out.ps2 <= map[data_in.rs2];
                 data_out.pd_old <= map[data_in.rd];
@@ -102,15 +87,10 @@ module rename(
         end
     end
     
-    always_comb begin
-        re_preg = preg;
-        re_map = map;
-    end
-    
     map_table u_map_table(
         .clk(clk),
         .reset(reset), 
-        .spec(spec),
+        .branch(branch),
         .mispredict(mispredict), 
         .update_en(update_en),
         .rd(data_in.rd),
@@ -121,7 +101,6 @@ module rename(
     free_list u_free_list(
         .clk(clk),
         .reset(reset),
-        .spec(spec),
         .mispredict(mispredict),
         .write_en(write_en),    
         .read_en(read_en),
