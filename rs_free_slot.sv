@@ -2,7 +2,7 @@
 import types_pkg::*;
 
 module rs_free_slot(
-    input alu_rs_data [7:0] rs_table,
+    input rs_data [7:0] rs_table,
     output logic [2:0] index1,
     output logic [2:0] index2,
     output logic [3:0] free_space,

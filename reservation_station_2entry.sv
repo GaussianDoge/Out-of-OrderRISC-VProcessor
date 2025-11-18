@@ -1,11 +1,11 @@
 `timescale 1ns / 1ps
 import types_pkg::*;
 
-module alu_reservation_station(
+module reservation_station_2entry(
     input logic clk,
     input logic reset,
-    input logic alu1_rdy,
-    input logic alu2_rdy,
+    input logic fu1_rdy,
+    input logic fu2_rdy,
     
     // Upstream from Pipeline Buffer/FIFO
     input logic valid_in_1,
@@ -19,7 +19,7 @@ module alu_reservation_station(
     input logic ready_out,
     output logic valid_out,
     output logic valid_out2,
-    output alu_rs_data [1:0] data_out,
+    output rs_data [1:0] data_out,
     
     // Set destination physical reg to not ready
     output logic [6:0] nr_reg1,
@@ -36,10 +36,12 @@ module alu_reservation_station(
     
     output logic set_reg1_rdy,
     output logic set_reg2_rdy
+    
+    // Recover 
     );
     
-    alu_rs_data [7:0] rs_table;
-    logic alu_assign;
+    rs_data [7:0] rs_table;
+    logic fu_assign;
     
     logic [2:0] index1;
     logic [2:0] index2;
@@ -63,17 +65,19 @@ module alu_reservation_station(
         .have_free2(index2_valid)
     );
     
-    // get free alu
+    
     always_comb begin
         if (reset) begin
         end else begin
-            unique case ({alu1_rdy, alu2_rdy})
-                2'b00: alu_assign = 1'b0;
-                2'b01: alu_assign = 1'b1;
-                2'b10: alu_assign = 1'b0;
-                2'b11: alu_assign = 1'b0;
+            // get free fu
+            unique case ({fu1_rdy, fu2_rdy})
+                2'b00: fu_assign = 1'b0;
+                2'b01: fu_assign = 1'b1;
+                2'b10: fu_assign = 1'b0;
+                2'b11: fu_assign = 1'b0;
             endcase
             
+            // Update ready status of reg
             for (int i = 0; i < 8; i++) begin
                 if (rs_table[i].pr1 == reg1_rdy && reg1_rdy_valid) begin
                     rs_table[i].pr1_ready = 1'b1;
@@ -94,6 +98,7 @@ module alu_reservation_station(
                 end
             end
             
+            // Reset ready signal
             if (!reg1_rdy_valid && set_reg1_rdy) begin
                 set_reg1_rdy = 1'b0;
             end else begin
@@ -108,7 +113,7 @@ module alu_reservation_station(
     
     always_ff @(posedge clk) begin
         if (reset) begin
-            alu_assign <= 1'b0;
+            fu_assign <= 1'b0;
             
             ready_in <= 1'b1;
             valid_out <= 1'b0;
@@ -148,7 +153,7 @@ module alu_reservation_station(
                 rs_table[index1].imm <= instr1.imm;
                 rs_table[index1].rob_index <= instr1.rob_index;
                 rs_table[index1].age <= 3'b0;
-                rs_table[index1].fu <= alu_assign;
+                rs_table[index1].fu <= fu_assign;
                 
                 nr_valid[0] <= 1'b1;
             end else begin
@@ -168,7 +173,7 @@ module alu_reservation_station(
                 rs_table[index2].imm <= instr2.imm;
                 rs_table[index2].rob_index <= instr2.rob_index;
                 rs_table[index2].age <= 3'b0;
-                rs_table[index2].fu <= ~alu_assign; // assign different alu from instr1
+                rs_table[index2].fu <= ~fu_assign; // assign different alu from instr1
                 
                 nr_valid[1] <= 1'b1;
             end else begin
@@ -178,7 +183,7 @@ module alu_reservation_station(
             // issue
             for (int i = 0; i < 8; i++) begin
                 if (rs_table[i].pr1_ready && rs_table[i].pr2_ready 
-                    && rs_table[i].fu && alu2_rdy) begin
+                    && rs_table[i].fu && fu2_rdy) begin
                     valid_out <= 1'b1;
                     data_out[1] <= rs_table[i];
                     rs_table[i].valid <= 1'b1;
@@ -198,7 +203,7 @@ module alu_reservation_station(
             
             for (int i = 0; i < 8; i++) begin
                 if (rs_table[i].pr1_ready && rs_table[i].pr2_ready 
-                    && ~rs_table[i].fu && alu1_rdy) begin
+                    && ~rs_table[i].fu && fu1_rdy) begin
                     valid_out2 <= 1'b1;
                     data_out[0] <= rs_table[i];
                     rs_table[i].valid <= 1'b1;

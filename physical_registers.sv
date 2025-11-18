@@ -10,6 +10,8 @@ module physical_registers(
     input logic [31:0] write_data,
     input logic [6:0] target_reg,
     output logic [31:0] read_data,
+    output logic [6:0] rdy_reg1,
+    output logic reg1_rdy_valid,
     
     // check if reg is ready
     input logic alu_rs_check_rdy1,
@@ -96,6 +98,7 @@ module physical_registers(
                 reg_rdy_table[i] <= 1'b1;
             end
         end else begin
+            reg1_rdy_valid <= 1'b0;
             case ({read, write})
                 2'b10: begin // read only
                     read_data <= phy_reg[target_reg];
@@ -103,6 +106,8 @@ module physical_registers(
                 2'b01: begin // write only => automatically set reg to ready
                     phy_reg[target_reg] <= write_data;
                     reg_rdy_table[target_reg] <= 1'b1;
+                    rdy_reg1 <= target_reg;
+                    reg1_rdy_valid <= 1'b1;
                 end
             endcase
         end

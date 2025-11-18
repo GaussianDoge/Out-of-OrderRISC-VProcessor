@@ -37,6 +37,7 @@ package types_pkg;
     
     typedef struct packed {
         logic [6:0] Opcode;
+        logic [31:0] pc;
         logic [6:0] prd;
         logic [6:0] pr1;
         logic pr1_ready;
@@ -58,5 +59,5 @@ package types_pkg;
         logic [1:0] fu;
         logic [3:0] rob_index;
         logic [2:0] age;
-    } alu_rs_data;
+    } rs_data;
 endpackage 
