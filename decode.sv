@@ -34,6 +34,8 @@ module decode(
     logic fu_alu_next;
     logic fu_br_next;
     logic ready_in_reset;
+    logic [2:0] func3_next;
+    logic [6:0] func7_next;
     
     // Combinational Section
     assign ready_in = sent||ready_in_reset;
@@ -52,7 +54,9 @@ module decode(
         .Opcode(opcode_next),
         .fu_mem(fu_mem_next),
         .fu_alu(fu_alu_next),
-        .fu_br(fu_br_next)
+        .fu_br(fu_br_next),
+        .func3(func3_next),
+        .func7(func7_next)
     );
 
     always_comb begin
@@ -70,6 +74,8 @@ module decode(
             data_out.fu_mem = 1'b0;
             data_out.fu_alu = 1'b0;
             data_out.fu_br = 1'b0;
+            data_out.func3 = 3'b0;
+            data_out.func7 = 7'b0
             
             sent = 1'b0;
         end else begin
