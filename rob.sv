@@ -6,8 +6,8 @@ module rob (
     
     // from rename stage
     input  logic write_en,
-    input  logic [7:0] pd_new_in,
-    input  logic [7:0] pd_old_in,
+    input  logic [6:0] pd_new_in,
+    input  logic [6:0] pd_old_in,
     input logic [31:0] pc_in,
     
     // from FU stage 
@@ -24,11 +24,15 @@ module rob (
     output logic complete_out,
 
     output logic full,
-    output logic empty
+    output logic empty,
+    // For RS to keep track of the rob index
+    output logic [4:0] ptr
 );
     rob_data rob_table[0:15];
     
     logic [4:0]  w_ptr, r_ptr;      
+    assign ptr = w_ptr;
+    
     logic [4:0]  ctr;            
     
     assign full = (ctr == 16); 

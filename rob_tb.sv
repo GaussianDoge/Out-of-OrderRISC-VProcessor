@@ -5,7 +5,7 @@ module rob_tb;
   // ---------------- DUT I/O ----------------
   logic        clk, reset;
   logic        write_en;
-  logic [7:0]  pd_new_in, pd_old_in;
+  logic [6:0]  pd_new_in, pd_old_in;
   logic [31:0] pc_in;
   logic        complete_in;
   logic [4:0]  rob_fu;
@@ -62,8 +62,8 @@ module rob_tb;
 
   // ---------------- Allocate ----------------
   task automatic alloc(output [4:0] tag_o,
-                       input  [7:0] pd_new,
-                       input  [7:0] pd_old,
+                       input  [6:0] pd_new,
+                       input  [6:0] pd_old,
                        input  [31:0] pc);
     begin
       if (full) $fatal(1, "[ALLOC] ROB full unexpectedly (occ=%0d)", occ(tb_rptr, tb_wptr));
