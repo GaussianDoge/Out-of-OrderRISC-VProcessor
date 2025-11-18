@@ -17,6 +17,7 @@ package types_pkg;
     } decode_data;
     
     typedef struct packed {
+        logic [31:0] pc;
         logic [31:0] imm;
         logic [2:0] ALUOp;
         logic [6:0] Opcode;
