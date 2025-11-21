@@ -38,6 +38,7 @@ module rename(
     logic [6:0] re_preg;
 
     logic [6:0] map [0:31];
+    logic [3:0] re_ctr;
     
     // Speculation is 1 when we encounter a branch instruction
     wire branch = (data_in.Opcode == 7'b1100011);
@@ -65,8 +66,12 @@ module rename(
             if (valid_in && ready_in && branch) begin
                 re_preg <= preg;
                 re_map <= map;
+                re_ctr <= ctr;
             end
-            if (rename_en) begin
+            if (mispredict) begin
+                ctr <= re_ctr;
+            end
+            end else if (rename_en) begin
                 ctr <= (ctr == 15) ? 0 : ctr + 1;
                 data_out.ps1 <= map[data_in.rs1];
                 data_out.ps2 <= map[data_in.rs2];
