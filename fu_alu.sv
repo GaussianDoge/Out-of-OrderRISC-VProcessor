@@ -5,21 +5,16 @@ module fu_alu(
     input clk,
     input reset,
     
-    // From Dispatch
-    input logic issued,
-    
     // From ROB
     input logic [4:0] curr_rob_tag,
-    
-    // From FU branch
     input logic mispredict,
     input logic [4:0] mispredict_tag,
     
     // From RS and PRF
+    input logic issued,
     input rs_data data_in,
     input logic [31:0] ps1_data,
     input logic [31:0] ps2_data,
-    input logic [6:0] pd,
     
     // Output data
     output alu_data data_out
