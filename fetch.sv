@@ -3,6 +3,7 @@
 module fetch(
     input logic clk,
     input logic reset,
+    input logic mispredict,
     
     // Upstream 
     input logic [31:0] pc_in,
@@ -49,6 +50,7 @@ module fetch(
     ) fetch_decode_buffer (
         .clk        (clk),
         .reset      (reset),
+        .mispredict (mispredict),
         
         .valid_in   (valid_in_delayed),
         .ready_in   (),

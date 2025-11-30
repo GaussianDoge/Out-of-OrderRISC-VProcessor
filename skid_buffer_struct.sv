@@ -5,6 +5,7 @@ module skid_buffer_struct #(
     )(
     input logic     clk,
     input logic     reset,
+    input logic     mispredict,
     
     // upstream (producer -> skid)
     input logic     valid_in,
@@ -26,7 +27,7 @@ module skid_buffer_struct #(
     assign data_out = valid_out_sig ? buffer : data_in;
     
     always_ff @ (posedge clk) begin
-        if (reset) begin
+        if (reset || mispredict) begin
             valid_out_sig <= 1'b0;
             buffer <= 0;
         end else begin

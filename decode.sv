@@ -4,6 +4,7 @@ import types_pkg::*;
 module decode(
     input logic clk,
     input logic reset,
+    input logic mispredict,
 
     // Upstream
     input logic [31:0] instr,
@@ -60,7 +61,7 @@ module decode(
     );
 
     always_comb begin
-        if (reset) begin
+        if (reset || mispredict) begin
             data_out.pc = 32'b0;
             valid_out = 1'b0;
             ready_in_reset = 1'b1;

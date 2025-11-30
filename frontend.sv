@@ -1,11 +1,17 @@
 `timescale 1ns / 1ps
-// This module is for testing purpose
 
 module frontend(
     input logic clk,
     input logic reset,
     input logic [31:0] pc_in,
-    output decode_data data_out
+    
+    // Handle Mispredict
+    input logic mispredict,
+    
+    // Downstream of pipeline
+    input logic frontend_ready_out,
+    output decode_data data_out,
+    output logic frontend_valid_out
     );
     
     logic [31:0] pc_out;
@@ -17,11 +23,14 @@ module frontend(
     logic decode_valid_out;
     decode_data decode_data_out;
     logic decode_buffer_ready_in;
+    
+    
 
     
     fetch fetch_unit (
         .clk(clk),
         .reset(reset),
+        .mispredict(mispredict),
         .pc_in(pc_in),
         .ready_out(decode_ready_in),
         .instr_out(fetch_instr_out),
@@ -33,6 +42,7 @@ module frontend(
     decode decode_unit (
         .clk      (clk),
         .reset    (reset),
+        .mispredict(mispredict),
         .instr    (fetch_instr_out),
         .pc_in    (pc_out),
         .valid_in (fetch_valid_out),
@@ -47,13 +57,14 @@ module frontend(
     ) decode_buffer (
         .clk        (clk),
         .reset      (reset),
+        .mispredict (mispredict),
         
         .valid_in   (decode_valid_out),
         .ready_in   (decode_buffer_ready_in),
         .data_in    (decode_data_out),
         
-        .valid_out  (),
-        .ready_out  (1'b1),
+        .valid_out  (frontend_valid_out),
+        .ready_out  (frontend_ready_out),
         .data_out   (data_out)
     );
     
