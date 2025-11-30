@@ -28,8 +28,12 @@ module dispatch(
     input  logic lsu_rs_ready_in,
 
     // Interface with PRF
-    output logic [6:0] dispatch_nr_reg,
-    output logic dispatch_nr_valid,
+    output logic [6:0] alu_nr_reg,
+    output logic alu_nr_valid,
+    output logic [6:0] br_nr_reg,
+    output logic br_nr_valid,
+    output logic [6:0] lsu_nr_reg,
+    output logic lsu_nr_valid,
 
     input logic [6:0] preg1_rdy,
     input logic [6:0] preg2_rdy,
@@ -179,14 +183,6 @@ module dispatch(
         dispatch_packet.pr2_ready = 1'b0;
     end
     
-    logic [6:0] alu_nr_reg;
-    logic alu_nr_valid;
-
-    logic [6:0] br_nr_reg;
-    logic br_nr_valid;
-
-    logic [6:0] lsu_nr_reg;
-    logic lsu_nr_valid;
 
     // ALU RS
     rs u_alu_rs (
@@ -262,20 +258,5 @@ module dispatch(
         
         .flush(mispredict)
     );
-
-    // PRF Update Logic
-    assign dispatch_nr_valid = alu_nr_valid | br_nr_valid | lsu_nr_valid;
-    
-    always_comb begin
-        if (alu_nr_valid) begin
-            dispatch_nr_reg = alu_nr_reg;
-        end else if (br_nr_valid) begin
-            dispatch_nr_reg = br_nr_reg;
-        end else if (lsu_nr_valid) begin 
-            dispatch_nr_reg = lsu_nr_reg;
-        end else begin
-            dispatch_nr_reg = '0;
-        end
-    end
 
 endmodule
