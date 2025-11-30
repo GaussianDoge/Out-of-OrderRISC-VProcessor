@@ -21,7 +21,6 @@ module rs(
     
     // combinational update readyness of src reg
     // when physical reg writes something, it will send reg_rdy_valid signal
-    // when it receive set_reg_rdy = 1, it set reg_rdy_valid to 0
     input logic [6:0] reg1_rdy,
     input logic [6:0] reg2_rdy,
     input logic [6:0] reg3_rdy,
