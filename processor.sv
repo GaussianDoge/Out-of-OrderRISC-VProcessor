@@ -59,6 +59,15 @@ module processor(
     logic lsu_rdy;
     logic [6:0] lsu_nr_reg;
     logic lsu_nr_valid;
+    
+    // From PRF to RS (Set readiness)
+    logic [6:0] rdy_reg1;
+    logic reg1_rdy_valid;
+    logic [6:0] rdy_reg2;
+    logic reg2_rdy_valid;
+    logic [6:0] rdy_reg3;
+    logic reg3_rdy_valid;
+    
     dispatch dispatch_unit(.clk(clk),
                            .reset(reset),
                            
@@ -175,14 +184,6 @@ module processor(
     logic write_lru_rd;
     logic [31:0] write_lru_data;
     logic [6:0] target_lru_reg;
-
-    // From PRF to RS (Set readiness)
-    logic [6:0] rdy_reg1;
-    logic reg1_rdy_valid;
-    logic [6:0] rdy_reg2;
-    logic reg2_rdy_valid;
-    logic [6:0] rdy_reg3;
-    logic reg3_rdy_valid;
     
     physical_registers PRF(.clk(clk),
                            .reset(reset),
