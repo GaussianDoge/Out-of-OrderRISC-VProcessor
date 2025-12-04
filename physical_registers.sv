@@ -120,7 +120,7 @@ module physical_registers(
             end
             
             if (alu_rs_check_rdy2) begin
-                alu_rs_rdy1 = reg_rdy_table[alu_pr2];
+                alu_rs_rdy2 = reg_rdy_table[alu_pr2];
             end
             
             if (lsu_rs_check_rdy1) begin
