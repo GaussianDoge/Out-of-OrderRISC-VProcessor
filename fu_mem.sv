@@ -26,6 +26,8 @@ module fu_mem(
     logic valid;
     logic [31:0] addr;
     logic [31:0] data_mem;
+    logic [6:0] pd_mem;
+    logic [4:0] rob_mem;
     
     always_comb begin
         // Only support L-type instructions
@@ -34,15 +36,11 @@ module fu_mem(
         end else begin
             addr = '0;
         end
-    end
+    end    
     
-    always_comb begin
-        data_out.fu_mem_ready = 1'b1;      
-        data_out.fu_mem_done  = valid;    
-        data_out.p_mem        = data_in.pd;
-        data_out.rob_fu_mem   = data_in.rob_index;
-        data_out.data         = valid ? data_mem : 32'b0;
-        
+    always_comb begin   
+        data_out.fu_mem_ready = 1'b1;
+        data_out.fu_mem_done  = 1'b0;
         if (mispredict) begin
             automatic logic [4:0] ptr = (mispredict_tag == 15) ? 0 : mispredict_tag + 1;
             for (logic [4:0] i = ptr; i != curr_rob_tag; i=(i==15)?0:i+1) begin
@@ -53,6 +51,19 @@ module fu_mem(
                     data_out.fu_mem_ready = 1'b1;
                     data_out.fu_mem_done = 1'b0;
                 end
+            end
+        end else begin
+            if (issued) begin
+                data_out.fu_mem_ready = 1'b0;
+                data_out.fu_mem_done = 1'b0;
+                data_out.data = '0;
+                data_out.p_mem = data_in.pd;
+                data_out.rob_fu_mem = data_in.rob_index;
+            end
+            else if (valid) begin
+                data_out.fu_mem_ready = 1'b1;
+                data_out.fu_mem_done = 1'b1;
+                data_out.data = data_mem;
             end
         end
     end
