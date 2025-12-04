@@ -18,30 +18,30 @@ module dispatch(
     input  logic alu_rs_ready_in,
 
     // Branch Unit
-    output logic br_rs_valid_out,
-    output rs_data br_rs_data_out,
-    input  logic br_rs_ready_in,
+    output logic b_rs_valid_out,
+    output rs_data b_rs_data_out,
+    input  logic b_rs_ready_in,
 
     // LSU
     output logic lsu_rs_valid_out,
     output rs_data lsu_rs_data_out,
     input  logic lsu_rs_ready_in,
 
-    // Interface with PRF
+    // Interface with PRF (Set Busy / Allocation)
     output logic [6:0] alu_nr_reg_out,
     output logic alu_nr_valid_out,
-    
-    output logic [6:0] br_nr_reg_out,
-    output logic br_nr_valid_out,
-    
+    output logic [6:0] b_nr_reg_out,
+    output logic b_nr_valid_out,
     output logic [6:0] lsu_nr_reg_out,
     output logic lsu_nr_valid_out,
 
-    output logic [6:0] query_ps1, // Query PRF: "Is source 1 ready?"
-    output logic [6:0] query_ps2, // Query PRF: "Is source 2 ready?"
-    input  logic pr1_is_ready, // PRF Answer: "Yes/No"
-    input  logic pr2_is_ready, // PRF Answer: "Yes/No"
+    // Interface with PRF (Readiness Query)
+    output logic [6:0] query_ps1,
+    output logic [6:0] query_ps2,
+    input  logic pr1_is_ready,
+    input  logic pr2_is_ready,
 
+    // Common Data Bus (Lost Wakeup Check)
     input logic [6:0] preg1_rdy,
     input logic [6:0] preg2_rdy,
     input logic [6:0] preg3_rdy,
@@ -49,23 +49,26 @@ module dispatch(
     input logic preg2_valid,
     input logic preg3_valid,
 
-    // Interface with ROB
-    input logic complete_in,
-    input logic [4:0] rob_fu_tag, // why 5 bits
-    input logic mispredict,
-    input logic [4:0] mispredict_tag, // why 5 bits
-    
-    output logic [4:0] rob_retire_tag, // why 5 bits
-    output logic rob_retire_valid,
-    output logic [6:0] retire_pd_old
+    // Interface with ROB (Allocation)
+    output logic rob_we_out,
+    output logic [6:0] rob_pd_new_out,
+    output logic [6:0] rob_pd_old_out,
+    output logic [31:0] rob_pc_out,
+
+    // Interface with ROB (Status)
+    input logic [4:0] rob_tag_in,
+    input logic rob_full_in,
+
+    // Global
+    input logic mispredict
 );
 
     // Routing Logic
-    logic is_alu, is_mem, is_br;
+    logic is_alu, is_mem, is_b;
     always_comb begin
         is_alu = data_in.fu_alu;
         is_mem = data_in.fu_mem;
-        is_br  = data_in.fu_br;
+        is_b  = data_in.fu_br;
     end
     
     // ALU RS Buffer
@@ -85,19 +88,19 @@ module dispatch(
     );
 
     // Branch RS Buffer
-    logic br_buf_valid_out;
-    logic br_buf_ready_out;
-    rename_data br_buf_data;
+    logic b_buf_valid_out;
+    logic b_buf_ready_out;
+    rename_data b_buf_data;
 
-    skid_buffer_struct #(.T(rename_data)) u_buf_br (
+    skid_buffer_struct #(.T(rename_data)) u_buf_b (
         .clk(clk), .reset(reset),
         .mispredict(mispredict),
-        .valid_in(valid_in && is_br), 
+        .valid_in(valid_in && is_b), 
         .ready_in(), 
         .data_in(data_in),
-        .valid_out(br_buf_valid_out),
-        .ready_out(br_buf_ready_out),
-        .data_out(br_buf_data)
+        .valid_out(b_buf_valid_out),
+        .ready_out(b_buf_ready_out),
+        .data_out(b_buf_data)
     );
 
     // LSU RS Buffer
@@ -117,19 +120,16 @@ module dispatch(
     );
 
     // Rename Stall Logic
-    assign ready_in = !(alu_buf_valid_out || br_buf_valid_out || lsu_buf_valid_out);
-
-    // Dispatch Logic
-    logic rob_is_full;
-    logic alu_rs_has_space, br_rs_has_space, lsu_rs_has_space;
-
+    assign ready_in = !(alu_buf_valid_out || b_buf_valid_out || lsu_buf_valid_out);
+    
+    // Priority Logic
     rename_data active_packet;
     
     always_comb begin
         if (alu_buf_valid_out) begin
             active_packet = alu_buf_data;
-        end else if (br_buf_valid_out) begin
-            active_packet = br_buf_data;
+        end else if (b_buf_valid_out) begin
+            active_packet = b_buf_data;
         end else if (lsu_buf_valid_out) begin
             active_packet = lsu_buf_data;
         end else begin
@@ -138,53 +138,63 @@ module dispatch(
     end
 
     // Buffer Ready Outs
+    logic rob_is_full;
+    assign rob_is_full = rob_full_in;
+    logic alu_rs_has_space, b_rs_has_space, lsu_rs_has_space;
+
     assign alu_buf_ready_out = !rob_is_full && alu_rs_has_space;
-    assign br_buf_ready_out  = !rob_is_full && br_rs_has_space;
+    assign b_buf_ready_out  = !rob_is_full && b_rs_has_space;
     assign lsu_buf_ready_out = !rob_is_full && lsu_rs_has_space;
 
     // Write Enables for RSs
-    logic alu_rs_write_en;
-    logic br_rs_write_en;
-    logic lsu_rs_write_en;
+    logic alu_rs_write_en, b_rs_write_en, lsu_rs_write_en;
     assign alu_rs_write_en = alu_buf_valid_out && alu_buf_ready_out;
-    assign br_rs_write_en  = br_buf_valid_out  && br_buf_ready_out;
+    assign b_rs_write_en  = b_buf_valid_out  && b_buf_ready_out;
     assign lsu_rs_write_en = lsu_buf_valid_out && lsu_buf_ready_out;
 
-    // Write Enable for ROB
-    logic rob_we;
-    assign rob_we = alu_rs_write_en || br_rs_write_en || lsu_rs_write_en;
+    // ROB Output
+    assign rob_we_out     = alu_rs_write_en || b_rs_write_en || lsu_rs_write_en;
+    assign rob_pd_new_out = active_packet.pd_new;
+    assign rob_pd_old_out = active_packet.pd_old;
+    assign rob_pc_out     = active_packet.pc;
 
-    // Internal wire to capture the assigned ROB ID
-    logic [4:0] rob_allocated_ptr; 
+    // // Internal wire to capture the assigned ROB ID
+    // logic [4:0] rob_allocated_ptr; 
 
-    // ROB
-    rob u_rob (
-        .clk            (clk),
-        .reset          (reset),
-        .write_en       (rob_we),
-        .pd_new_in      (active_packet.pd_new), 
-        .pd_old_in      (active_packet.pd_old),
-        .pc_in          (active_packet.pc),
-        .complete_in    (complete_in),
-        .rob_fu         (rob_fu_tag), // 5 bits?
-        .mispredict     (mispredict),
-        .branch         (1'b0), 
-        .mispredict_tag (mispredict_tag), // 5 bits?
-        .rob_tag_out    (rob_retire_tag), // 5 bits?
-        .valid_retired  (rob_retire_valid),
-        .pd_old_out     (retire_pd_old),
-        .complete_out   (), 
-        .full           (rob_is_full),
-        .empty          (),
-        .ptr            (rob_allocated_ptr)
-    );
+    // // ROB
+    // rob u_rob (
+    //     .clk            (clk),
+    //     .reset          (reset),
+    //     .write_en       (rob_we),
+    //     .pd_new_in      (active_packet.pd_new), 
+    //     .pd_old_in      (active_packet.pd_old),
+    //     .pc_in          (active_packet.pc),
+    //     .fu_alu_done    (fu_alu_done),
+    //     .rob_fu_alu     (rob_fu_alu),
+    //     .fu_b_done      (fu_b_done),
+    //     .rob_fu_b       (rob_fu_b),
+    //     .fu_mem_done    (fu_mem_done),
+    //     .rob_fu_mem     (rob_fu_mem),
+        
+    //     .br_mispredict  (br_mispredict),
+    //     .branch         (1'b0), 
+    //     .mispredict_tag (mispredict_tag), // 5 bits?
+    //     .rob_tag_out    (rob_retire_tag), // 5 bits?
+    //     .valid_retired  (rob_retire_valid),
+    //     .pd_old_out     (retire_pd_old),
+    //     .complete_out   (), 
+    //     .full           (rob_is_full),
+    //     .empty          (),
+    //     .ptr            (rob_allocated_ptr)
+    // );
 
-    // Query the PRF 
+    // Readiness Logic
     assign query_ps1 = active_packet.ps1;
     assign query_ps2 = active_packet.ps2;
     
     dispatch_pipeline_data dispatch_packet;
     logic match_cdb_1, match_cdb_2;
+
     always_comb begin
         dispatch_packet.Opcode    = active_packet.Opcode;
         dispatch_packet.pc        = active_packet.pc;
@@ -192,7 +202,7 @@ module dispatch(
         dispatch_packet.pr1       = active_packet.ps1;
         dispatch_packet.pr2       = active_packet.ps2;
         dispatch_packet.imm       = active_packet.imm[31:0];
-        dispatch_packet.rob_index = rob_allocated_ptr;
+        dispatch_packet.rob_index = rob_tag_in;
 
         dispatch_packet.func3     = active_packet.func3;
         dispatch_packet.func7     = active_packet.func7;
@@ -216,76 +226,52 @@ module dispatch(
 
     // ALU RS
     rs u_alu_rs (
-        .clk(clk), .reset(reset),
+        .clk(clk),
+        .reset(reset),
         .fu_rdy(alu_rs_ready_in),
         .valid_out(alu_rs_valid_out), 
         .data_out(alu_rs_data_out),
-        
         .valid_in(alu_rs_write_en),
         .ready_in(alu_rs_has_space), 
         .instr(dispatch_packet),
-        
         .nr_reg(alu_nr_reg_out),
         .nr_valid(alu_nr_valid_out),
-        
-        .reg1_rdy(preg1_rdy),
-        .reg2_rdy(preg2_rdy),
-        .reg3_rdy(preg3_rdy),
-
-        .reg1_rdy_valid(preg1_valid),
-        .reg2_rdy_valid(preg2_valid),
-        .reg3_rdy_valid(preg3_valid),
-        
+        .reg1_rdy(preg1_rdy), .reg2_rdy(preg2_rdy), .reg3_rdy(preg3_rdy),
+        .reg1_rdy_valid(preg1_valid), .reg2_rdy_valid(preg2_valid), .reg3_rdy_valid(preg3_valid),
         .flush(mispredict)
     );
 
     // Branch RS
     rs u_branch_rs (
-        .clk(clk), .reset(reset),
-        .fu_rdy(br_rs_ready_in),
-        .valid_out(br_rs_valid_out), 
-        .data_out(br_rs_data_out),
-        
-        .valid_in(br_rs_write_en),
-        .ready_in(br_rs_has_space), 
+        .clk(clk),
+        .reset(reset),
+        .fu_rdy(b_rs_ready_in),
+        .valid_out(b_rs_valid_out), 
+        .data_out(b_rs_data_out),
+        .valid_in(b_rs_write_en),
+        .ready_in(b_rs_has_space), 
         .instr(dispatch_packet),
-        
-        .nr_reg(br_nr_reg_out),
-        .nr_valid(br_nr_valid_out),
-        
-        .reg1_rdy(preg1_rdy),
-        .reg2_rdy(preg2_rdy),
-        .reg3_rdy(preg3_rdy),
-        
-        .reg1_rdy_valid(preg1_valid),
-        .reg2_rdy_valid(preg2_valid),
-        .reg3_rdy_valid(preg3_valid),
-        
+        .nr_reg(b_nr_reg_out),
+        .nr_valid(b_nr_valid_out),
+        .reg1_rdy(preg1_rdy), .reg2_rdy(preg2_rdy), .reg3_rdy(preg3_rdy),
+        .reg1_rdy_valid(preg1_valid), .reg2_rdy_valid(preg2_valid), .reg3_rdy_valid(preg3_valid),
         .flush(mispredict)
     );
 
     // LSU RS
     rs u_lsu_rs (
-        .clk(clk), .reset(reset),
+        .clk(clk),
+        .reset(reset),
         .fu_rdy(lsu_rs_ready_in),
         .valid_out(lsu_rs_valid_out), 
         .data_out(lsu_rs_data_out),
-        
         .valid_in(lsu_rs_write_en),
         .ready_in(lsu_rs_has_space), 
         .instr(dispatch_packet),
-        
         .nr_reg(lsu_nr_reg_out),
         .nr_valid(lsu_nr_valid_out),
-        
-        .reg1_rdy(preg1_rdy),
-        .reg2_rdy(preg2_rdy),
-        .reg3_rdy(preg3_rdy),
-
-        .reg1_rdy_valid(preg1_valid),
-        .reg2_rdy_valid(preg2_valid),
-        .reg3_rdy_valid(preg3_valid),
-        
+        .reg1_rdy(preg1_rdy), .reg2_rdy(preg2_rdy), .reg3_rdy(preg3_rdy),
+        .reg1_rdy_valid(preg1_valid), .reg2_rdy_valid(preg2_valid), .reg3_rdy_valid(preg3_valid),
         .flush(mispredict)
     );
 endmodule
