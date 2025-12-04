@@ -99,6 +99,7 @@ module rs(
         end else begin           
             // if slot is free, insert instruction
             // first instr
+            //$display("Inside");
             if (ready_in && valid_in) begin
                 // increment age
 //                for (int i = 0; i < 8; i++) begin
@@ -113,9 +114,9 @@ module rs(
                 rs_table[index].pd <= instr.prd;
                 nr_reg <= instr.prd;
                 rs_table[index].ps1 <= instr.pr1;
-                rs_table[index].ps1_ready = instr.pr1_ready;
+                rs_table[index].ps1_ready <= instr.pr1_ready;
                 rs_table[index].ps2 <= instr.pr2;
-                rs_table[index].ps2_ready = instr.pr2_ready;
+                rs_table[index].ps2_ready <= instr.pr2_ready;
                 rs_table[index].imm <= instr.imm;
                 rs_table[index].rob_index <= instr.rob_index;
                 rs_table[index].age <= 3'b0;
@@ -130,7 +131,7 @@ module rs(
             
             // issue
             for (int i = 0; i < 8; i++) begin
-                if (rs_table[i].ps1_ready && rs_table[i].pr2_ready 
+                if (rs_table[i].ps1_ready && rs_table[i].ps2_ready 
                     && fu_rdy) begin
                     valid_out <= 1'b1;
                     data_out <= rs_table[i];

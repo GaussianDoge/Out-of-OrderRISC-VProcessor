@@ -96,15 +96,12 @@ module decode(
                 data_out.fu_mem = fu_mem_next;
                 data_out.fu_alu = fu_alu_next;
                 data_out.fu_br = fu_br_next;
-            end else begin
-                // do nothing (keep to avoid bug)
-            end
+            end 
             
             // Handle downstream
             if (ready_out && valid_out) begin
                 sent = 1'b1;
             end else if (sent && !ready_out) begin // triggered when downstream updated
-                valid_out = 1'b0;
                 sent = 1'b0;
             end else begin
                 // do nothing (keep to avoid bug)
