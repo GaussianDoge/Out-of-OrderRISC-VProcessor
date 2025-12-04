@@ -20,69 +20,58 @@ module fu_branch(
     // Output 
     output b_data data_out
 );
-    always_ff @(posedge clk or posedge reset) begin
-        if (reset) begin
-            data_out.fu_b_ready <= 1'b1;
-            data_out.fu_b_done <= 1'b0;
-            data_out.mispredict_tag <= '0;
-            data_out.mispredict <= 1'b0;     
-            data_out.jalr_bne_signal <= 1'b0;
-            data_out.pc <= '0;
-            data_out.data <= '0;
-            data_out.p_b <= '0;     
-        end else begin
-            if (mispredict) begin
-                automatic logic [4:0] ptr = (mispredict_tag == 15) ? 0 : mispredict_tag + 1;
-                for (logic [4:0] i = ptr; i != curr_rob_tag; i=(i==15)?0:i+1) begin
-                    if (i == data_in.rob_index) begin
-                        data_out.fu_b_done <= 1'b0;
-                        data_out.jalr_bne_signal <= 1'b0;
-                        data_out.mispredict <= 1'b0;
-                        data_out.mispredict_tag <= '0;
-                        data_out.pc <= '0;
-                        data_out.fu_b_ready <= 1'b1;
-                        data_out.p_b <= '0;
-                        data_out.data <= '0;
-                    end
+    logic [4:0] ptr;
+    always_comb begin
+        if (mispredict) begin
+            ptr = (mispredict_tag == 15) ? 0 : mispredict_tag + 1;
+            for (logic [4:0] i = ptr; i != curr_rob_tag; i=(i==15)?0:i+1) begin
+                if (i == data_in.rob_index) begin
+                    data_out.fu_b_done = 1'b0;
+                    data_out.jalr_bne_signal = 1'b0;
+                    data_out.mispredict = 1'b0;
+                    data_out.mispredict_tag = '0;
+                    data_out.pc = '0;
+                    data_out.fu_b_ready = 1'b1;
+                    data_out.p_b = '0;
+                    data_out.data = '0;
+                    data_out.rob_fu_b = '0;
                 end
-            end else if (issued) begin
-                if (data_in.Opcode == 7'b1100111) begin
-                    if (data_in.func3 == 3'b000) begin // Jalr
-                        data_out.pc <= data_in.imm + ps1_data;
-                        data_out.data <= data_in.pc + 4;
-                        data_out.jalr_bne_signal <= 1'b1;
-                        data_out.p_b <= data_in.pd;
-                    end
-                end else if (data_in.Opcode == 7'b1100011) begin
-                    data_out.p_b <= '0;
-                    data_out.data <= '0;
-                    if (data_in.func3 == 3'b001) begin // Bne
-                        // Mispredict, we assume not taken
-                        if ((ps1_data - ps2_data) != 0) begin
-                            data_out.pc <= (data_in.pc + data_in.imm) & {{31{1'b1}}, 1'b0};
-                            data_out.jalr_bne_signal <= 1'b1;
-                            data_out.mispredict <= 1'b1;
-                            data_out.mispredict_tag <= data_in.rob_index;
-                        end else begin 
-                            data_out.mispredict <= 1'b0;
-                            data_out.mispredict_tag <= '0;
-                            data_out.jalr_bne_signal <= 1'b0;
-                            data_out.pc <= '0;
-                        end
-                    end 
-                end
-                // Set fu_b_done to 1 because only takes 1 cycle
-                data_out.fu_b_done <= 1'b1;
-            end else begin
-                data_out.fu_b_done <= 1'b0;
-                data_out.jalr_bne_signal <= 1'b0;
-                data_out.mispredict <= 1'b0;
-                data_out.mispredict_tag <= '0;
-                data_out.pc <= '0;
-                data_out.fu_b_ready <= 1'b1;
-                data_out.p_b <= '0;
-                data_out.data <= '0;
             end
+        end else begin
+            data_out.fu_b_ready = 1'b1;
+            if (data_in.Opcode == 7'b1100111) begin
+                if (data_in.func3 == 3'b000) begin // Jalr
+                    data_out.pc = data_in.imm + ps1_data;
+                    data_out.data = data_in.pc + 4;
+                    data_out.jalr_bne_signal = 1'b1;
+                    data_out.p_b = data_in.pd;
+                    data_out.rob_fu_b = data_in.rob_index;
+                    data_out.mispredict = 1'b0;
+                    data_out.mispredict_tag = '0;
+                end
+            end else if (data_in.Opcode == 7'b1100011) begin
+                if (data_in.func3 == 3'b001) begin // Bne
+                    // Mispredict, we assume not taken
+                    if ((ps1_data - ps2_data) != 0) begin
+                        data_out.pc = (data_in.pc + data_in.imm) & {{31{1'b1}}, 1'b0};
+                        data_out.rob_fu_b = data_in.rob_index;
+                        data_out.jalr_bne_signal = 1'b1;
+                        data_out.mispredict = 1'b1;
+                        data_out.mispredict_tag = data_in.rob_index;
+                        data_out.data = '0;
+                        data_out.p_b = '0;
+                    end else begin 
+                        data_out.pc = '0;
+                        data_out.rob_fu_b = data_in.rob_index;
+                        data_out.data = '0;
+                        data_out.p_b = '0;
+                        data_out.mispredict = 1'b0;
+                        data_out.mispredict_tag = '0;
+                        data_out.jalr_bne_signal = 1'b0;
+                    end
+                end 
+            end
+            data_out.fu_b_done = 1'b1;
         end
     end
 endmodule

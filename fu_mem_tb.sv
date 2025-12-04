@@ -3,7 +3,7 @@ import types_pkg::*;
 
 module fu_mem_tb;
 
-    // Signals
+    // ---------------- Signals ----------------
     logic clk;
     logic reset;
 
@@ -14,45 +14,47 @@ module fu_mem_tb;
     logic [4:0]  mispredict_tag;
     rs_data      data_in;
     logic [31:0] ps1_data;
-    logic [31:0] ps2_data;
-    logic [6:0]  pd;
+    logic [31:0] ps2_data;   // unused but kept for interface
 
     // Outputs from DUT
     mem_data     data_out;
 
-    // Testbench expected value
+    // For checking results
     logic [31:0] expected_data;
 
-    // DUT Instantiation
+    // ---------------- DUT ----------------
     fu_mem dut (
         .clk            (clk),
         .reset          (reset),
-        .issued         (issued),
+
         .curr_rob_tag   (curr_rob_tag),
         .mispredict     (mispredict),
         .mispredict_tag (mispredict_tag),
+
+        .issued         (issued),
         .data_in        (data_in),
         .ps1_data       (ps1_data),
         .ps2_data       (ps2_data),
-        .pd             (pd),
+
         .data_out       (data_out)
     );
 
-    // Clock Generation
+    // ---------------- Clock ----------------
     initial begin
         clk = 0;
-        forever #5 clk = ~clk;  // 10ns period
+        forever #5 clk = ~clk;  // 10 ns period
     end
 
     // Safety Assertion: only LOAD opcodes should ever be issued
     always @(posedge clk) begin
         if (!reset) begin
             assert (!(issued && data_in.Opcode != 7'b0000011))
-            else $error("Issued non-LOAD opcode to fu_mem at time %0t!", $time);
+                else $error("Issued non-LOAD opcode to fu_mem at time %0t!", $time);
         end
     end
 
-    // Tasks
+    // ---------------- Tasks ----------------
+
     // Synchronous reset
     task automatic do_reset();
         begin
@@ -64,7 +66,7 @@ module fu_mem_tb;
             data_in        = '0;
             ps1_data       = '0;
             ps2_data       = '0;
-            pd             = '0;
+            expected_data  = '0;
 
             repeat (3) @(posedge clk);
             reset = 1'b0;
@@ -82,25 +84,23 @@ module fu_mem_tb;
         begin
             @(posedge clk);
             // Fill rs_data
-            data_in              = '0;
-            data_in.Opcode       = 7'b0000011; // LOAD
-            data_in.func3        = func3_in;
-            data_in.imm          = offset;
-            data_in.rob_index    = rob_idx;
+            data_in           = '0;
+            data_in.Opcode    = 7'b0000011; // LOAD
+            data_in.func3     = func3_in;
+            data_in.imm       = offset;
+            data_in.rob_index = rob_idx;
 
-            ps1_data             = base_addr;
-            ps2_data             = 32'd0;
-            pd                   = 7'd10;
+            ps1_data          = base_addr;
+            ps2_data          = 32'd0;
 
             issued = 1'b1;
-            @(posedge clk);      // one-cycle issue
+            @(posedge clk);      // 1-cycle issue pulse
             issued = 1'b0;
         end
     endtask
 
-    // Main Stimulus
+    // ---------------- Main Stimulus ----------------
     initial begin
-        // Optional waveform dump
         $dumpfile("fu_mem_waves.vcd");
         $dumpvars(0, fu_mem_tb);
 
@@ -109,15 +109,17 @@ module fu_mem_tb;
         // 1. Reset
         do_reset();
 
+        // ------------------------------------------------
         // TEST 1: LW at addr 0
+        // ------------------------------------------------
         $display("\n[Test 1] LW at addr 0...");
-        // Expectation based on data.mem:
-        // data_mem[0..3] = 11 22 33 44  -> 0x44332211
+        // data.mem assumed: [0..3] = 11 22 33 44  => 0x44332211
+        curr_rob_tag = 5'd0;  // not used (no mispredict), but set anyway
         issue_load(3'b010, 32'h0000_0000, 32'h0, 5'd1);
 
-        // Wait for fu_mem_done (2-cycle BRAM + FU logic)
+        // Wait for fu_mem_done from FU (valid from BRAM)
         wait (data_out.fu_mem_done === 1'b1);
-        @(posedge clk);
+        #1;  // settle
 
         expected_data = 32'h4433_2211;
         if (data_out.data !== expected_data) begin
@@ -126,20 +128,20 @@ module fu_mem_tb;
             $display("PASS: LW result = %h", data_out.data);
         end
 
-        // Clear inputs after completion
         data_in  = '0;
         ps1_data = '0;
-        pd       = '0;
         @(posedge clk);
 
+        // ------------------------------------------------
         // TEST 2: LBU at addr 1
+        // ------------------------------------------------
         $display("\n[Test 2] LBU at addr 1...");
-        // Expectation based on data.mem:
         // data_mem[1] = 0x22 -> 0x00000022
+        curr_rob_tag = 5'd0;
         issue_load(3'b100, 32'h0000_0000, 32'h1, 5'd2);
 
         wait (data_out.fu_mem_done === 1'b1);
-        @(posedge clk);
+        #1;
 
         expected_data = 32'h0000_0022;
         if (data_out.data !== expected_data) begin
@@ -150,39 +152,38 @@ module fu_mem_tb;
 
         data_in  = '0;
         ps1_data = '0;
-        pd       = '0;
         @(posedge clk);
 
+        // ------------------------------------------------
         // TEST 3: Misprediction flush while load in-flight
+        // ------------------------------------------------
         $display("\n[Test 3] Mispredict flush (in-flight)...");
 
-        // Issue a load with ROB index = 5 and keep data_in.rob_index alive
+        // Issue a load with ROB index = 5
         @(posedge clk);
-        data_in              = '0;
-        data_in.Opcode       = 7'b0000011;
-        data_in.func3        = 3'b010;
-        data_in.imm          = 32'h0;
-        data_in.rob_index    = 5'd5;
-        ps1_data             = 32'h0000_0000;
-        pd                   = 7'd10;
+        data_in           = '0;
+        data_in.Opcode    = 7'b0000011;
+        data_in.func3     = 3'b010;
+        data_in.imm       = 32'h0;
+        data_in.rob_index = 5'd5;
+        ps1_data          = 32'h0000_0000;
 
         issued = 1'b1;
         @(posedge clk);
         issued = 1'b0;
 
-        // While memory is "in flight", assert mispredict across the range
-        // mispredict_tag = 3, curr_rob_tag = 8 -> loop checks 4,5,6,7;
-        // index 5 should match and flush this FU state.
-        mispredict     = 1'b1;
+        // Configure ROB window: mispredict at 3, tail at 8 => younger 4,5,6,7.
         mispredict_tag = 5'd3;
         curr_rob_tag   = 5'd8;
+        mispredict     = 1'b1;
 
-        // Hold mispredict for a few cycles (cover memory latency window)
+        // Hold mispredict across likely memory-latency window
         repeat (4) @(posedge clk);
         mispredict = 1'b0;
 
-        // After flush, FU should not report done and data should be 0
+        // Give one cycle for combinational fu_mem to settle after mispredict goes low
         @(posedge clk);
+
         if (data_out.fu_mem_done === 1'b0 && data_out.data === 32'd0) begin
             $display("PASS: Mispredict flush cleared FU MEM outputs.");
         end else begin
@@ -192,16 +193,18 @@ module fu_mem_tb;
 
         data_in  = '0;
         ps1_data = '0;
-        pd       = '0;
         @(posedge clk);
 
+        // ------------------------------------------------
         // TEST 4: Back-to-back loads (LW then LBU)
+        // ------------------------------------------------
         $display("\n[Test 4] Back-to-back loads...");
 
         // First LW @0
+        curr_rob_tag = 5'd3;
         issue_load(3'b010, 32'h0000_0000, 32'h0, 5'd3);
         wait (data_out.fu_mem_done === 1'b1);
-        @(posedge clk);
+        #1;
 
         expected_data = 32'h4433_2211;
         if (data_out.data !== expected_data) begin
@@ -214,7 +217,7 @@ module fu_mem_tb;
         // Immediately a second load: LBU @1
         issue_load(3'b100, 32'h0000_0000, 32'h1, 5'd4);
         wait (data_out.fu_mem_done === 1'b1);
-        @(posedge clk);
+        #1;
 
         expected_data = 32'h0000_0022;
         if (data_out.data !== expected_data) begin
@@ -238,7 +241,7 @@ module fu_mem_tb;
                  mispredict,
                  data_out.fu_mem_ready,
                  data_out.fu_mem_done,
-                 dut.addr,
+                 dut.addr,           // internal addr inside fu_mem
                  data_out.data);
     end
 

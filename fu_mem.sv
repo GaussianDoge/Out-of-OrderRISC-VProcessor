@@ -24,56 +24,35 @@ module fu_mem(
     wire [6:0] curr_Opcode = data_in.Opcode;
     wire [2:0] curr_func3 = data_in.func3;
     logic valid;
-    logic read_en;
     logic [31:0] addr;
     logic [31:0] data_mem;
     
     always_comb begin
         // Only support L-type instructions
-        if (issued) begin
-            if (data_in.Opcode == 7'b0000011) begin
-                addr = ps1_data + data_in.imm;
-            end
+        if (data_in.Opcode == 7'b0000011) begin
+            addr = ps1_data + data_in.imm;
+        end else begin
+            addr = '0;
         end
     end
     
-    always_ff @(posedge clk or posedge reset) begin
-        if (reset) begin
-            data_out.p_mem <= '0;
-            data_out.rob_fu_mem <= '0;
-            data_out.data <= '0; 
-            data_out.fu_mem_ready <= 1'b1;
-            data_out.fu_mem_done <= 1'b0;
-            read_en <= 1'b0;
-            addr <= '0;
-        end else begin
-            if (mispredict) begin
-                automatic logic [4:0] ptr = (mispredict_tag == 15) ? 0 : mispredict_tag + 1;
-                for (logic [4:0] i = ptr; i != curr_rob_tag; i=(i==15)?0:i+1) begin
-                    if (i == data_in.rob_index) begin
-                        data_out.p_mem <= '0;
-                        data_out.rob_fu_mem <= '0;
-                        data_out.data <= '0;
-                        data_out.fu_mem_ready <= 1'b1;
-                        data_out.fu_mem_done <= 1'b0;
-                        read_en <= 1'b0;
-                        addr <= '0;
-                    end
+    always_comb begin
+        data_out.fu_mem_ready = 1'b1;      
+        data_out.fu_mem_done  = valid;    
+        data_out.p_mem        = data_in.pd;
+        data_out.rob_fu_mem   = data_in.rob_index;
+        data_out.data         = valid ? data_mem : 32'b0;
+        
+        if (mispredict) begin
+            automatic logic [4:0] ptr = (mispredict_tag == 15) ? 0 : mispredict_tag + 1;
+            for (logic [4:0] i = ptr; i != curr_rob_tag; i=(i==15)?0:i+1) begin
+                if (i == data_in.rob_index) begin
+                    data_out.p_mem = '0;
+                    data_out.rob_fu_mem = '0;
+                    data_out.data = '0;
+                    data_out.fu_mem_ready = 1'b1;
+                    data_out.fu_mem_done = 1'b0;
                 end
-            end else begin
-                if (issued) begin
-                    data_out.fu_mem_ready <= 1'b0;
-                    data_out.fu_mem_done <= 1'b0;
-                end else if (valid) begin
-                    read_en <= 1'b0;
-                    data_out.fu_mem_ready <= 1'b1;
-                    data_out.fu_mem_done <= 1'b1;
-                    addr <= '0;
-                    data_out.data <= data_mem;
-                end else if (!read_en) begin
-                    data_out.fu_mem_ready <= 1'b1;
-                    data_out.fu_mem_done <= 1'b0;
-                end 
             end
         end
     end

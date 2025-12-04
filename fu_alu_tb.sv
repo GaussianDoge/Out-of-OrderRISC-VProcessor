@@ -31,21 +31,21 @@ module fu_alu_tb;
     fu_alu dut (
         .clk            (clk),
         .reset          (reset),
-        .issued         (issued),
         .curr_rob_tag   (curr_rob_tag),
         .mispredict     (mispredict),
         .mispredict_tag (mispredict_tag),
+        .issued         (issued),      // not used in fu_alu (combinational)
         .data_in        (data_in),
         .ps1_data       (ps1_data),
         .ps2_data       (ps2_data),
         .data_out       (data_out)
     );
 
-    // Clock
+    // Clock (not strictly needed for combinational FU, but fine)
     initial clk = 0;
     always #5 clk = ~clk;   // 100 MHz, 10 ns period
 
-    // Helper tasks
+    // ---------------- Tasks ----------------
 
     task automatic apply_reset;
         begin
@@ -65,6 +65,7 @@ module fu_alu_tb;
         end
     endtask
 
+    // For combinational FU: drive inputs, wait #1, then check outputs
     task automatic do_alu_op(
         input string       name,
         input logic [6:0]  opcode,
@@ -76,11 +77,10 @@ module fu_alu_tb;
         input logic [31:0] expected
     );
         begin
-            // Drive inputs on negedge so they're stable at next posedge
             @(negedge clk);
             mispredict          = 1'b0;
             mispredict_tag      = '0;
-            curr_rob_tag        = EXPECTED_ROB + 1;  // not really used here
+            curr_rob_tag        = EXPECTED_ROB + 1;  // arbitrary
 
             data_in             = '0;
             data_in.valid       = 1'b1;
@@ -95,11 +95,14 @@ module fu_alu_tb;
             ps1_data            = src1;
             ps2_data            = src2;
 
-            issued = 1'b1;
+            issued              = 1'b1;    // purely cosmetic here
 
-            // Next posedge: ALU samples issued=1 and computes result
-            @(posedge clk);
-            #1;  // let nonblocking updates settle
+            #1; // let combinational logic settle
+
+            if (data_out.fu_alu_ready !== 1'b1) begin
+                $error("[%0t] %s: fu_alu_ready should be 1, got %0b",
+                       $time, name, data_out.fu_alu_ready);
+            end
 
             if (data_out.fu_alu_done !== 1'b1) begin
                 $error("[%0t] %s: fu_alu_done not asserted when expected", $time, name);
@@ -122,18 +125,8 @@ module fu_alu_tb;
                          $time, name, data_out.data);
             end
 
-            // Deassert issued, check done drops next cycle
-            @(negedge clk);
             issued = 1'b0;
-
-            @(posedge clk);
-            #1;
-            if (data_out.fu_alu_done !== 1'b0) begin
-                $error("[%0t] %s: fu_alu_done did not deassert after completion",
-                       $time, name);
-            end
-
-            @(posedge clk); // gap before next op
+            @(posedge clk); // small gap before next op
         end
     endtask
 
@@ -144,6 +137,10 @@ module fu_alu_tb;
 
             // Issue a simple ADDI with ROB index = 5
             @(negedge clk);
+            mispredict          = 1'b0;
+            mispredict_tag      = '0;
+            curr_rob_tag        = 5'd0;
+
             data_in             = '0;
             data_in.valid       = 1'b1;
             data_in.Opcode      = OPCODE_OPIMM;
@@ -151,7 +148,7 @@ module fu_alu_tb;
             data_in.func7       = 7'b0000000;
             data_in.imm         = 32'd5;
             data_in.pd          = 7'd10;
-            data_in.rob_index   = 5'd5;
+            data_in.rob_index   = 5'd5;        // <-- in mispredict window
             data_in.fu          = 2'd1;
 
             ps1_data            = 32'd10;
@@ -159,23 +156,26 @@ module fu_alu_tb;
 
             issued              = 1'b1;
 
-            // First posedge: ALU computes result, done=1
-            @(posedge clk);
+            // Check "normal" result first
             #1;
-            if (data_out.fu_alu_done !== 1'b1) begin
-                $error("[%0t] Mispredict test: fu_alu_done not high after issue", $time);
+            if (data_out.fu_alu_done !== 1'b1 ||
+                data_out.data        !== 32'd15) begin
+                $error("[%0t] Mispredict test: initial ADDI result wrong: done=%0b data=0x%08h",
+                       $time, data_out.fu_alu_done, data_out.data);
+            end else begin
+                $display("[%0t] Mispredict test: initial ADDI result OK: 0x%08h",
+                         $time, data_out.data);
             end
 
-            // Now assert mispredict for a window that includes rob_index==5
-            // mispredict_tag=3, curr_rob_tag=8 -> loop visits 4,5,6,7 so 5 is hit
+            // Now assert mispredict for window including rob_index==5
+            // mispredict_tag=3, curr_rob_tag=8 -> loop visits 4,5,6,7
             @(negedge clk);
             mispredict     = 1'b1;
             mispredict_tag = 5'd3;
             curr_rob_tag   = 5'd8;
 
-            @(posedge clk);
             #1;
-            // After mispredict clock edge, ALU should clear outputs and done
+            // After mispredict, outputs should be cleared
             if (data_out.fu_alu_done !== 1'b0 ||
                 data_out.p_alu       !== '0    ||
                 data_out.rob_fu_alu  !== '0    ||
@@ -196,11 +196,12 @@ module fu_alu_tb;
             issued         = 1'b0;
             data_in        = '0;
             ps1_data       = '0;
+            ps2_data       = '0;
             @(posedge clk);
         end
     endtask
 
-    // Back-to-back ops: issue two ALU ops in consecutive cycles
+    // Back-to-back ops: drive two ALU ops in sequence
     task automatic test_back_to_back;
         logic [31:0] expected1;
         logic [31:0] expected2;
@@ -227,9 +228,8 @@ module fu_alu_tb;
             ps2_data            = 32'd0;
 
             issued = 1'b1;
-
-            @(posedge clk);
             #1;
+
             expected1 = 32'd15;
             if (data_out.fu_alu_done !== 1'b1 || data_out.data !== expected1) begin
                 $error("[%0t] Back-to-back op1 FAILED: done=%0b data=0x%08h expected=0x%08h",
@@ -238,7 +238,7 @@ module fu_alu_tb;
                 $display("[%0t] Back-to-back op1 PASSED: result=0x%08h", $time, data_out.data);
             end
 
-            // Second op immediately next cycle: SUB 30 - 12 = 18
+            // Second op: SUB 30 - 12 = 18
             @(negedge clk);
             data_in             = '0;
             data_in.valid       = 1'b1;
@@ -253,11 +253,9 @@ module fu_alu_tb;
             ps1_data            = 32'd30;
             ps2_data            = 32'd12;
 
-            // Keep issued=1 for this second op as well
             issued = 1'b1;
-
-            @(posedge clk);
             #1;
+
             expected2 = 32'd18;
             if (data_out.fu_alu_done !== 1'b1 || data_out.data !== expected2) begin
                 $error("[%0t] Back-to-back op2 FAILED: done=%0b data=0x%08h expected=0x%08h",
@@ -266,27 +264,20 @@ module fu_alu_tb;
                 $display("[%0t] Back-to-back op2 PASSED: result=0x%08h", $time, data_out.data);
             end
 
-            // Now drop issued and let done go low
             @(negedge clk);
             issued = 1'b0;
-            @(posedge clk);
-            #1;
-            if (data_out.fu_alu_done !== 1'b0) begin
-                $error("[%0t] Back-to-back: fu_alu_done did not deassert", $time);
-            end
-
             @(posedge clk);
         end
     endtask
 
-    // Test sequence
+    // ---------------- Test sequence ----------------
     initial begin
         $dumpfile("fu_alu_waves.vcd");
         $dumpvars(0, fu_alu_tb);
 
         apply_reset();
 
-        // 1) ADDI: x = 10 + 5 = 15
+        // 1) ADDI
         do_alu_op("ADDI",
             OPCODE_OPIMM, 3'b000, 7'b0000000,
             32'd5,
@@ -295,7 +286,7 @@ module fu_alu_tb;
             32'd15
         );
 
-        // 2) ORI: x = 0x0F0F0000 | 0x0000FFFF = 0x0F0FFFFF
+        // 2) ORI
         do_alu_op("ORI",
             OPCODE_OPIMM, 3'b110, 7'b0000000,
             32'h0000_FFFF,
@@ -304,7 +295,7 @@ module fu_alu_tb;
             32'h0F0F_FFFF
         );
 
-        // 3) SLTIU: (10 < 20) ? 1 : 0
+        // 3) SLTIU
         do_alu_op("SLTIU",
             OPCODE_OPIMM, 3'b011, 7'b0000000,
             32'd20,
@@ -313,7 +304,7 @@ module fu_alu_tb;
             32'd1
         );
 
-        // 4) LUI: imm already the final value
+        // 4) LUI
         do_alu_op("LUI",
             OPCODE_LUI, 3'b000, 7'b0000000,
             32'h1234_5000,
@@ -322,7 +313,7 @@ module fu_alu_tb;
             32'h1234_5000
         );
 
-        // 5) SRA: 0xF0000000 >>> 4 = 0xFF000000
+        // 5) SRA
         do_alu_op("SRA",
             OPCODE_OP, 3'b101, 7'b0100000,
             32'd0,
@@ -331,7 +322,7 @@ module fu_alu_tb;
             32'hFF00_0000
         );
 
-        // 6) SUB: 30 - 12 = 18
+        // 6) SUB
         do_alu_op("SUB",
             OPCODE_OP, 3'b000, 7'b0100000,
             32'd0,
@@ -340,7 +331,7 @@ module fu_alu_tb;
             32'd18
         );
 
-        // 7) AND: 0xFF00FF00 & 0x0F0F0F0F = 0x0F000F00
+        // 7) AND
         do_alu_op("AND",
             OPCODE_OP, 3'b111, 7'b0000000,
             32'd0,
@@ -349,10 +340,7 @@ module fu_alu_tb;
             32'h0F00_0F00
         );
 
-        // Mispredict + flush behavior
         test_mispredict_flush();
-
-        // Back-to-back execution behavior
         test_back_to_back();
 
         $display("[%0t] All tests completed.", $time);

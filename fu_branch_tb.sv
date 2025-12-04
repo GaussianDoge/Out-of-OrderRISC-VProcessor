@@ -33,209 +33,261 @@ module fu_branch_tb;
 
     // DUT Instantiation
     fu_branch dut (
-        .clk           (clk),
-        .reset         (reset),
+        .clk            (clk),
+        .reset          (reset),
 
-        .curr_rob_tag  (curr_rob_tag),
+        .curr_rob_tag   (curr_rob_tag),
+        .mispredict     (mispredict_in),
+        .mispredict_tag (mispredict_tag_in),
 
-        .data_in       (data_in),
-        .issued        (issued),
+        .data_in        (data_in),
+        .issued         (issued),
 
-        .mispredict    (mispredict_in),
-        .mispredict_tag(mispredict_tag_in),
+        .ps1_data       (ps1_data),
+        .ps2_data       (ps2_data),
 
-        .ps1_data      (ps1_data),
-        .ps2_data      (ps2_data),
-
-        .data_out      (data_out)
+        .data_out       (data_out)
     );
 
-    // Test Procedure
+    // Simple reset task (clears TB-side regs; FU is combinational)
+    task automatic do_reset();
+        begin
+            reset             = 1'b1;
+            issued            = 1'b0;
+            data_in           = '0;
+            ps1_data          = 32'd0;
+            ps2_data          = 32'd0;
+            curr_rob_tag      = 5'd0;
+            mispredict_in     = 1'b0;
+            mispredict_tag_in = 5'd0;
+
+            repeat (2) @(posedge clk);
+            reset = 1'b0;
+            @(posedge clk);
+        end
+    endtask
+
+    // -------------------- Main Stimulus --------------------
     initial begin
-        // Initialize Inputs
-        issued           = 0;
-        data_in          = '0;
-        ps1_data         = 0;
-        ps2_data         = 0;
-        curr_rob_tag     = 5'd0;
-        mispredict_in    = 1'b0;
-        mispredict_tag_in= 5'd0;
+        // Waves
+        $dumpfile("fu_branch_tb.vcd");
+        $dumpvars(0, fu_branch_tb);
 
-        // 1. Reset Test
-        $display("--- Starting Reset Test ---");
-        reset = 1;
-        @(posedge clk);
-        #1; // Post-hold
-        reset = 0;
-        @(posedge clk);
-        #1;
+        $display("=== Starting fu_branch tests ===");
 
-        assert(data_out.fu_b_ready == 1'b1) else $error("Reset failed: fu_b_ready should be 1");
-        assert(data_out.fu_b_done  == 1'b0) else $error("Reset failed: fu_b_done should be 0");
-        $display("Reset Test Passed");
+        do_reset();
 
-        // 2. JALR Test (Opcode 7'b1100111, func3 000)
-        $display("\n--- Starting JALR Test ---");
-
-        // Setup JALR: Target = rs1 + imm
-        // PC = 1000, RS1 = 500, Imm = 20 -> Target should be 520
-        // Return Address (data) should be PC + 4 = 1004
+        // ----------------------------------------------------
+        // 1. JALR Test (Opcode 1100111, func3=000)
+        // ----------------------------------------------------
+        $display("\n--- JALR Test ---");
+        // PC = 1000, rs1 = 500, imm = 20
+        // target PC = 500 + 20 = 520
+        // return (data) = PC + 4 = 1004
 
         @(negedge clk);
-        issued          = 1;
-        data_in.Opcode  = 7'b1100111;
-        data_in.func3   = 3'b000;
-        data_in.pc      = 32'd1000;
-        data_in.imm     = 32'd20;
-        data_in.pd      = 7'd5;     // Dest physical reg
-        data_in.rob_index = 5'd2;   // arbitrary tag
-        ps1_data        = 32'd500;  // Base address
-        ps2_data        = 32'd0;    // Unused for JALR
-        curr_rob_tag    = 5'd3;     // head/tail somewhere after this
+        issued             = 1'b1;
+        data_in            = '0;
+        data_in.Opcode     = 7'b1100111;
+        data_in.func3      = 3'b000;
+        data_in.pc         = 32'd1000;
+        data_in.imm        = 32'd20;
+        data_in.pd         = 7'd5;
+        data_in.rob_index  = 5'd2;
+        ps1_data           = 32'd500;
+        ps2_data           = 32'd0;
+        curr_rob_tag       = 5'd3;
+        mispredict_in      = 1'b0;
+        mispredict_tag_in  = 5'd0;
 
-        @(posedge clk);
-        #1; // Check after clock edge
+        #1; // combinational settle
 
-        if (data_out.fu_b_done &&
-            data_out.jalr_bne_signal &&
-            data_out.pc   == 32'd520 &&
-            data_out.data == 32'd1004 &&
-            data_out.p_b  == 7'd5) begin
-            $display("JALR Test Passed: Target=520, RetAddr=1004");
+        if (data_out.fu_b_done        == 1'b1   &&
+            data_out.fu_b_ready       == 1'b1   &&
+            data_out.jalr_bne_signal  == 1'b1   &&
+            data_out.pc               == 32'd520 &&
+            data_out.data             == 32'd1004 &&
+            data_out.p_b              == 7'd5   &&
+            data_out.rob_fu_b         == 5'd2   &&
+            data_out.mispredict       == 1'b0   &&
+            data_out.mispredict_tag   == 5'd0) begin
+            $display("JALR Test PASSED");
         end else begin
-            $error("JALR Test Failed! Got: PC=%0d, Data=%0d, Done=%b, p_b=%0d",
-                   data_out.pc, data_out.data, data_out.fu_b_done, data_out.p_b);
+            $error("JALR Test FAILED: pc=%0d data=%0d done=%b ready=%b jalr_bne=%b p_b=%0d rob=%0d mispred=%b tag=%0d",
+                   data_out.pc, data_out.data, data_out.fu_b_done, data_out.fu_b_ready,
+                   data_out.jalr_bne_signal, data_out.p_b, data_out.rob_fu_b,
+                   data_out.mispredict, data_out.mispredict_tag);
         end
 
-        // Deassert issue
         @(negedge clk);
-        issued = 0;
-        @(posedge clk);
+        issued = 1'b0;
 
-        // 3. BNE Test - Mispredict (Taken)
-        $display("\n--- Starting BNE (Mispredict/Taken) Test ---");
-        // Logic assumes Not Taken. If taken (rs1 != rs2), it is a mispredict.
-        // Opcode 7'b1100011, func3 001
+        // ----------------------------------------------------
+        // 2. BNE Taken (mispredict should be signaled)
+        // ----------------------------------------------------
+        $display("\n--- BNE Taken (mispredict) Test ---");
+        // Opcode 1100011, func3=001 (BNE)
+        // ps1 != ps2 → taken → we mispredicted (assuming not taken)
 
         @(negedge clk);
-        issued            = 1;
-        data_in.Opcode    = 7'b1100011;
-        data_in.func3     = 3'b001;
-        data_in.pc        = 32'd2000;
-        data_in.imm       = 32'd100;
-        data_in.rob_index = 5'd12; // Tag 12
+        issued             = 1'b1;
+        data_in            = '0;
+        data_in.Opcode     = 7'b1100011;
+        data_in.func3      = 3'b001;
+        data_in.pc         = 32'd2000;
+        data_in.imm        = 32'd100;
+        data_in.rob_index  = 5'd12;
 
-        ps1_data = 32'd10;
-        ps2_data = 32'd20; // 10 != 20, so Branch IS Taken
+        ps1_data           = 32'd10;
+        ps2_data           = 32'd20;      // unequal → branch taken
 
-        curr_rob_tag = 5'd13;
+        curr_rob_tag       = 5'd13;
+        mispredict_in      = 1'b0;
+        mispredict_tag_in  = 5'd0;
 
-        @(posedge clk);
         #1;
 
-        // Expected: Mispredict = 1, PC = (2000+100)&~1 = 2100, Tag = 12
-        if (data_out.mispredict == 1'b1 &&
-            data_out.mispredict_tag == 5'd12 &&
-            data_out.pc == 32'd2100) begin
-            $display("BNE (Taken) Test Passed: Correctly flagged mispredict to PC 2100");
+        // Target PC = (2000+100) & ~1 = 2100
+        if (data_out.mispredict      == 1'b1     &&
+            data_out.mispredict_tag  == 5'd12    &&
+            data_out.pc              == 32'd2100 &&
+            data_out.rob_fu_b        == 5'd12    &&
+            data_out.jalr_bne_signal == 1'b1     &&
+            data_out.fu_b_done       == 1'b1     &&
+            data_out.fu_b_ready      == 1'b1) begin
+            $display("BNE Taken Test PASSED");
         end else begin
-            $error("BNE (Taken) Test Failed! Mispredict=%b, Tag=%0d, PC=%0d",
-                   data_out.mispredict, data_out.mispredict_tag, data_out.pc);
+            $error("BNE Taken Test FAILED: mispred=%b tag=%0d pc=%0d rob=%0d jalr_bne=%b done=%b ready=%b",
+                   data_out.mispredict, data_out.mispredict_tag,
+                   data_out.pc, data_out.rob_fu_b,
+                   data_out.jalr_bne_signal,
+                   data_out.fu_b_done, data_out.fu_b_ready);
         end
 
-        // 4. BNE Test - Correct Predict (Not Taken)
-        $display("\n--- Starting BNE (Correct/Not Taken) Test ---");
+        @(negedge clk);
+        issued = 1'b0;
+
+        // ----------------------------------------------------
+        // 3. BNE Not Taken (correct prediction, no mispredict)
+        // ----------------------------------------------------
+        $display("\n--- BNE Not Taken (no mispredict) Test ---");
 
         @(negedge clk);
-        issued         = 1;
-        // Keep opcode BNE
-        // Make inputs Equal so branch is NOT taken
-        data_in.pc     = 32'd2200;
-        data_in.imm    = 32'd40;
-        data_in.rob_index = 5'd7;
-        ps1_data       = 32'd50;
-        ps2_data       = 32'd50;
+        issued             = 1'b1;
+        data_in            = '0;
+        data_in.Opcode     = 7'b1100011;
+        data_in.func3      = 3'b001;
+        data_in.pc         = 32'd2200;
+        data_in.imm        = 32'd40;
+        data_in.rob_index  = 5'd7;
 
-        curr_rob_tag   = 5'd8;
+        ps1_data           = 32'd50;
+        ps2_data           = 32'd50;    // equal → not taken
 
-        @(posedge clk);
+        curr_rob_tag       = 5'd8;
+        mispredict_in      = 1'b0;
+        mispredict_tag_in  = 5'd0;
+
         #1;
 
-        // Expected: Mispredict = 0, fu_b_done = 1 (branch executed but prediction was correct)
-        if (data_out.mispredict == 1'b0 && data_out.fu_b_done == 1'b1) begin
-             $display("BNE (Not Taken) Test Passed: No mispredict flagged.");
+        if (data_out.mispredict      == 1'b0  &&
+            data_out.fu_b_done       == 1'b1  &&
+            data_out.jalr_bne_signal == 1'b0  &&
+            data_out.pc              == 32'd0 &&
+            data_out.rob_fu_b        == 5'd7  &&
+            data_out.fu_b_ready      == 1'b1) begin
+            $display("BNE Not Taken Test PASSED");
         end else begin
-             $error("BNE (Not Taken) Test Failed! Mispredict should be 0. Got %b",
-                    data_out.mispredict);
+            $error("BNE Not Taken Test FAILED: mispred=%b done=%b jalr_bne=%b pc=%0d rob=%0d ready=%b",
+                   data_out.mispredict, data_out.fu_b_done,
+                   data_out.jalr_bne_signal, data_out.pc,
+                   data_out.rob_fu_b, data_out.fu_b_ready);
         end
 
         @(negedge clk);
-        issued = 0;
-        @(posedge clk);
+        issued = 1'b0;
 
-        // 5. Flush-on-Mispredict Test (kill younger in-flight branch)
-        $display("\n--- Starting Flush-on-Mispredict Test ---");
+        // ----------------------------------------------------
+        // 4. Flush-on-Mispredict Test
+        // ----------------------------------------------------
+        $display("\n--- Flush-on-Mispredict Test ---");
 
-        // Step 1: Produce a branch result for ROB index 3
+        // Setup: branch at rob_index=3 appears as in-flight in FU
         @(negedge clk);
-        issued            = 1;
-        data_in.Opcode    = 7'b1100011; // B-type
-        data_in.func3     = 3'b001;     // BNE
-        data_in.pc        = 32'd3000;
-        data_in.imm       = 32'd40;
-        data_in.rob_index = 5'd3;
-        ps1_data          = 32'd1;
-        ps2_data          = 32'd0;     // taken
-        curr_rob_tag      = 5'd5;      // ROB tail at 5; entries 0..4 in window
-
-        @(posedge clk);
-        #1;
-
-        // Sanity: we should have a valid branch result
-        if (data_out.fu_b_done != 1'b1) begin
-            $error("Flush Test setup failed: fu_b_done should be 1 after executing branch.");
-        end
-
-        // Step 2: Simulate mispredict from an OLDER branch at tag 1
-        // Range of younger tags between mispredict_tag+1..curr_rob_tag-1 = {2,3,4}
-        // Since this branch is at tag 3, it should be killed.
-        @(negedge clk);
-        issued             = 0;       // no new instruction
-        mispredict_in      = 1'b1;
-        mispredict_tag_in  = 5'd1;
+        issued             = 1'b1;
+        data_in            = '0;
+        data_in.Opcode     = 7'b1100011; // BNE
+        data_in.func3      = 3'b001;
+        data_in.pc         = 32'd3000;
+        data_in.imm        = 32'd40;
+        data_in.rob_index  = 5'd3;
+        ps1_data           = 32'd1;
+        ps2_data           = 32'd0;
         curr_rob_tag       = 5'd5;
 
-        @(posedge clk);
+        mispredict_in      = 1'b0;
+        mispredict_tag_in  = 5'd0;
+
+        #1;
+        // Sanity: with mispredict_in=0, FU produces some branch result
+        if (!data_out.fu_b_done) begin
+            $error("Flush Test setup: fu_b_done should be 1 when executing branch.");
+        end
+
+        // Now assert mispredict from older branch at tag=1
+        @(negedge clk);
+        issued             = 1'b0;  // RS can stop issuing this
+        mispredict_in      = 1'b1;
+        mispredict_tag_in  = 5'd1;
+        curr_rob_tag       = 5'd5;  // so window is {2,3,4}
+
         #1;
 
-        // Expect: this FU's outputs are cleared
-        if (data_out.fu_b_done      == 1'b0 &&
-            data_out.jalr_bne_signal== 1'b0 &&
-            data_out.mispredict     == 1'b0 &&
-            data_out.mispredict_tag == 5'd0 &&
-            data_out.pc             == 32'd0 &&
-            data_out.p_b            == 7'd0) begin
-            $display("Flush-on-Mispredict Test Passed: branch output cleared by flush.");
+        // Expected: FU outputs are cleared (flush)
+        if (data_out.fu_b_done       == 1'b0 &&
+            data_out.jalr_bne_signal == 1'b0 &&
+            data_out.mispredict      == 1'b0 &&
+            data_out.mispredict_tag  == 5'd0 &&
+            data_out.pc              == 32'd0 &&
+            data_out.p_b             == 7'd0  &&
+            data_out.rob_fu_b        == 5'd0  &&
+            data_out.fu_b_ready      == 1'b1) begin
+            $display("Flush-on-Mispredict Test PASSED: outputs cleared.");
         end else begin
-            $error("Flush-on-Mispredict Test FAILED: outputs not cleared as expected.\n",
-                   "  fu_b_done=%b jalr_bne_signal=%b mispredict=%b tag=%0d pc=%0d p_b=%0d",
+            $error("Flush-on-Mispredict Test FAILED: fu_b_done=%b ready=%b jalr_bne=%b mispred=%b tag=%0d pc=%0d p_b=%0d rob_fu_b=%0d",
                    data_out.fu_b_done,
+                   data_out.fu_b_ready,
                    data_out.jalr_bne_signal,
                    data_out.mispredict,
                    data_out.mispredict_tag,
                    data_out.pc,
-                   data_out.p_b);
+                   data_out.p_b,
+                   data_out.rob_fu_b);
         end
 
-        // Deassert mispredict
         @(negedge clk);
         mispredict_in     = 1'b0;
         mispredict_tag_in = 5'd0;
+        issued            = 1'b0;
+        data_in           = '0;
 
-        // End Simulation
         #20;
-        $display("\n All Tests Complete");
+        $display("\n=== All fu_branch tests complete ===");
         $finish;
+    end
+
+    // Monitor
+    initial begin
+        $monitor("[%0t] issued=%0b mispred_in=%0b fu_b_done=%0b fu_b_ready=%0b jalr_bne=%0b pc=0x%08h rob=%0d mispred_tag=%0d",
+                 $time,
+                 issued,
+                 mispredict_in,
+                 data_out.fu_b_done,
+                 data_out.fu_b_ready,
+                 data_out.jalr_bne_signal,
+                 data_out.pc,
+                 data_out.rob_fu_b,
+                 data_out.mispredict_tag);
     end
 
 endmodule
