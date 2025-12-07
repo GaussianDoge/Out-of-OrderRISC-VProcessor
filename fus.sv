@@ -13,6 +13,8 @@ module fus(
     input rs_data mem_rs_data,
     
     // From ROB
+    input logic retired,
+    input logic [4:0] rob_head,
     input logic [4:0] curr_rob_tag,
     input logic mispredict,
     input logic [4:0] mispredict_tag,
@@ -39,39 +41,61 @@ module fus(
     fu_alu u_alu (
         .clk(clk),
         .reset(reset),
+        
+        // From ROB
         .curr_rob_tag(curr_rob_tag),
         .mispredict(mispredict),
         .mispredict_tag(mispredict_tag),
+        
+        // From RS and PRF
         .issued(alu_issued),
         .data_in(alu_rs_data),
         .ps1_data(ps1_alu_data),
         .ps2_data(ps2_alu_data),
+        
+        // Output data
         .data_out(alu_out)
     );
     
     fu_mem u_mem (
         .clk(clk),
         .reset(reset),
+        
+        // From ROB
+        .retired(retired),
+        .rob_head(rob_head),
         .curr_rob_tag(curr_rob_tag),
         .mispredict(mispredict),
         .mispredict_tag(mispredict_tag),
+        
+        // From RS and PRF
         .issued(mem_issued),
         .data_in(mem_rs_data),
         .ps1_data(ps1_mem_data),
         .ps2_data(ps2_mem_data),
+        
+        // Output
         .data_out(mem_out)
     );
     
     fu_branch u_branch (
         .clk(clk),
         .reset(reset),
+        
+        // From ROB
         .curr_rob_tag(curr_rob_tag),
         .mispredict(mispredict),
         .mispredict_tag(mispredict_tag),
+        
+        // From RS
         .issued(b_issued),
         .data_in(b_rs_data),
+        
+        // From PRF
         .ps1_data(ps1_b_data),
         .ps2_data(ps2_b_data),
+        
+        // Output
         .data_out(b_out)
     );
 endmodule

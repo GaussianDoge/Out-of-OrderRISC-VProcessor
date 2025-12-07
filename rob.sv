@@ -4,13 +4,13 @@ module rob (
     input  logic clk,
     input  logic reset,
     
-    // from rename stage
+    // from Dispatch stage
     input  logic write_en,
     input  logic [6:0] pd_new_in,
     input  logic [6:0] pd_old_in,
     input logic [31:0] pc_in,
     
-    // from FU stage 
+    // from FUs
     input logic fu_alu_done,
     input logic fu_b_done,
     input logic fu_mem_done,
@@ -23,6 +23,9 @@ module rob (
     // Update free_list
     output logic [6:0] preg_old,
     output logic valid_retired,
+    
+    // Signal LSQ to put data into memory
+    output logic [4:0] head,
 
     // Global mispredict 
     output logic mispredict,
@@ -40,6 +43,7 @@ module rob (
     
     logic [4:0]  w_ptr, r_ptr;      
     assign ptr = w_ptr;
+    assign head = r_ptr;
     
     logic [4:0]  ctr;            
     
