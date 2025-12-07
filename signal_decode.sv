@@ -10,8 +10,8 @@ module signal_decode(
     output logic fu_mem,
     output logic fu_alu,
     output logic fu_br,
-    output logic func3,
-    output logic func7
+    output logic [2:0] func3,
+    output logic [6:0] func7
     );
     
     always_comb begin

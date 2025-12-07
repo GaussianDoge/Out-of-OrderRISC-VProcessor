@@ -55,8 +55,8 @@ module load_reg(
             read_alu_r1    = 1'b1;
             read_alu_r2    = 1'b1;
 
-            target_alu_r1  = alu_rs_data.pr1;
-            target_alu_r2  = alu_rs_data.pr2;
+            target_alu_r1  = alu_rs_data.ps1;
+            target_alu_r2  = alu_rs_data.ps2;
         end else begin
             read_alu_r1    = 1'b0;
             read_alu_r2    = 1'b0;
@@ -69,8 +69,8 @@ module load_reg(
             read_b_r1      = 1'b1;
             read_b_r2      = 1'b1;
 
-            target_b_r1    = b_rs_data.pr1;
-            target_b_r2    = b_rs_data.pr2;
+            target_b_r1    = b_rs_data.ps1;
+            target_b_r2    = b_rs_data.ps2;
         end else begin
             read_b_r1      = 1'b0;
             read_b_r2      = 1'b0;
@@ -83,8 +83,8 @@ module load_reg(
             read_lru_r1    = 1'b1;
             read_lru_r2    = 1'b1;
 
-            target_lru_r1  = mem_rs_data.pr1;
-            target_lru_r2  = mem_rs_data.pr2;
+            target_lru_r1  = mem_rs_data.ps1;
+            target_lru_r2  = mem_rs_data.ps2;
         end else begin
             read_lru_r1    = 1'b0;
             read_lru_r2    = 1'b0;

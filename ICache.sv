@@ -9,7 +9,7 @@ module ICache (
     // Stored in littleEndian
     logic [31:0] instr_mem[0:551];
 
-        initial begin
+    initial begin
         $readmemh("program.mem", instr_mem);
     end
 
