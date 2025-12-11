@@ -61,7 +61,7 @@ module tb_processor;
         // RISC-V ABI: a0 = x10, a1 = x11
         // rename_unit.map[arch_reg] -> physical reg ID (7 bits)
         pr_a0 = dut.rename_unit.map[5'd10];
-        pr_a1 = dut.rename_unit.map[5'd5];
+        pr_a1 = dut.rename_unit.map[5'd11];
 
         // Read the physical register file in PRF
         val_a0 = dut.PRF.phy_reg[pr_a0];

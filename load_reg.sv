@@ -50,7 +50,7 @@ module load_reg(
     
     always_comb begin
         // ALU
-        if (alu_issued && alu_rs_data.valid) begin
+        if (alu_issued && !alu_rs_data.valid) begin
             // Always read both sources; RS should only issue when ready
             read_alu_r1    = 1'b1;
             read_alu_r2    = 1'b1;
@@ -65,7 +65,7 @@ module load_reg(
         end
 
         // Branch
-        if (b_issued && b_rs_data.valid) begin
+        if (b_issued && !b_rs_data.valid) begin
             read_b_r1      = 1'b1;
             read_b_r2      = 1'b1;
 
@@ -79,7 +79,7 @@ module load_reg(
         end
 
         // LSU
-        if (mem_issued && mem_rs_data.valid) begin
+        if (mem_issued && !mem_rs_data.valid) begin
             read_lru_r1    = 1'b1;
             read_lru_r2    = 1'b1;
 
