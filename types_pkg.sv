@@ -11,7 +11,9 @@ package types_pkg;
         logic [31:0] imm;
         logic [2:0] ALUOp;
         logic [6:0] Opcode;
-        logic [1:0] fu;
+        logic fu_mem;
+        logic fu_alu;
+        logic fu_br;
         logic [2:0] func3;
         logic [6:0] func7;
     } decode_data;
@@ -27,11 +29,27 @@ package types_pkg;
         logic [4:0] rob_tag;
         logic [2:0] ALUOp;
         logic [6:0] Opcode;
-        logic [1:0] fu;
+        logic fu_alu;
+        logic fu_br;
+        logic fu_mem;
         logic [2:0] func3;
         logic [6:0] func7;
     } rename_data;
     
+     typedef struct packed {
+        logic [6:0] Opcode;
+        logic [31:0] pc;
+        logic [6:0] prd;
+        logic [6:0] pr1;
+        logic [6:0] pr2;
+        logic [31:0] imm;
+        logic [4:0] rob_index;
+        logic [2:0] func3;
+        logic [6:0] func7;
+        logic pr1_ready;
+        logic pr2_ready;
+    } dispatch_pipeline_data;
+
     typedef struct packed {
         logic [6:0] pd_new;
         logic [6:0] pd_old;
@@ -56,6 +74,7 @@ package types_pkg;
         logic [1:0] fu;
         logic ready;
         logic [31:0] pc;
+        logic [2:0] age;
     } rs_data;
     
     typedef struct packed {
@@ -85,7 +104,7 @@ package types_pkg;
         logic [31:0] data;
         logic [4:0] rob_fu_b;
     } b_data;
-    
+
     typedef struct packed {
         logic valid;
         logic [31:0] addr;
