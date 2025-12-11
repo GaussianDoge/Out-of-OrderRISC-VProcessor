@@ -97,6 +97,8 @@ module decode(
                 data_out.fu_mem = fu_mem_next;
                 data_out.fu_alu = fu_alu_next;
                 data_out.fu_br = fu_br_next;
+                data_out.func3 = func3_next;
+                data_out.func7 = func7_next;
             end else begin
                 valid_out = 1'b0;
             end
