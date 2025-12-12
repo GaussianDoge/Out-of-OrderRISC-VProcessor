@@ -21,13 +21,15 @@ module lsq(
     input logic [4:0] rob_head,
     output logic store_wb,
     output lsq data_out,
+    output logic store_done,
+    output logic store_ready,
+    output logic [4:0] store_rob_tag,
     output full
 );
     lsq lsq_arr[0:7];
     logic [2:0] w_ptr;
     logic [2:0] r_ptr;
     logic [3:0] ctr;
-    logic [4:0] pre_rob_index;
     
     assign full = (ctr == 8);
     
@@ -38,7 +40,6 @@ module lsq(
             r_ptr <= '0;
             store_wb <= 1'b0;
             data_out <= '0;
-            pre_rob_index <= 4'b1111;
             for (logic [2:0] i = 0; i <= 7; i++) begin
                 lsq_arr[i] <= '0;
             end
@@ -46,7 +47,7 @@ module lsq(
             store_wb <= 1'b0;
             data_out <= '0;
             if (issued && !full) begin
-                if (data_in.Opcode == 7'b0100011 && pre_rob_index != data_in.rob_index) begin
+                if (data_in.Opcode == 7'b0100011) begin
                     lsq_arr[w_ptr].valid <= 1'b1;
                     lsq_arr[w_ptr].addr <= ps1_data + imm_in;
                     lsq_arr[w_ptr].rob_tag <= data_in.rob_index;
@@ -59,8 +60,11 @@ module lsq(
                     end
                     ctr <= ctr + 1;
                     w_ptr <= (w_ptr == 7) ? 0 : w_ptr + 1;
-                    pre_rob_index <= data_in.rob_index;
-                end 
+                    
+                    store_done = 1'b1;
+                    store_ready = 1'b1;
+                    store_rob_tag = data_in.rob_index;
+                end
             end 
             if (retired) begin
                 if (lsq_arr[r_ptr].valid && rob_head == lsq_arr[r_ptr].rob_tag) begin

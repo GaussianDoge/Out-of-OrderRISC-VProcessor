@@ -29,7 +29,7 @@ module data_memory(
     logic valid_2cycles;
     logic [31:0] addr_reg;
     logic [2:0]  func3_reg;
-    logic [4:0] pre_rob_index = 4'b1111;
+    logic [4:0] pre_rob_index = 5'b11111;
     
     
     logic load_issue;
@@ -40,7 +40,7 @@ module data_memory(
             data_out <= '0;
             valid <= 1'b0;
             valid_2cycles <= 1'b0;
-            pre_rob_index <= 4'b1111;
+            pre_rob_index <= 5'b11111;
             for (int i = 0; i <= 102400; i++) begin
                 data_mem[i] <= '0;
             end
@@ -80,6 +80,9 @@ module data_memory(
                     data_out.fu_mem_ready <= 1'b1;      // free again
                     data_out.fu_mem_done  <= 1'b1;
                     data_out.rob_fu_mem <= data_in.rob_index;
+                    
+                    $display("Load Byte Unsigned");
+                    $display("M[%5d]=%32h", addr_reg, {{24{1'b0}}, data_mem[addr_reg]});
                 end else if (func3_reg == 3'b010) begin // lw
                     data_out.data <= {data_mem[addr_reg], data_mem[addr_reg+1],
                                   data_mem[addr_reg+2], data_mem[addr_reg+3]};

@@ -145,6 +145,8 @@ module rs(
                     rs_table[i].func3 <= 3'b0;
                     rs_table[i].func7 <= 7'b0;
                     break;
+                end else begin
+                    valid_out <= 1'b0;
                 end
             end
         end

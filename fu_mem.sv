@@ -33,6 +33,9 @@ module fu_mem(
     logic store_wb;
     lsq lsq_out;
     logic lsq_full;
+    logic store_done;
+    logic store_ready;
+    logic [4:0] store_rob_tag;
     
     always_comb begin
         // L-type and S-type instructions
@@ -99,7 +102,7 @@ module fu_mem(
                 if (data_in.Opcode == 7'b0100011 && !lsq_full) begin // sw
                     data_out.fu_mem_ready = 1'b1;
                     data_out.fu_mem_done = 1'b1;
-                    data_out.rob_fu_mem = data_in.rob_index;
+                    data_out.rob_fu_mem = store_rob_tag;
                 end else if (data_in.Opcode == 7'b0000011 && !load_en) begin // lw
                     data_out.fu_mem_ready = 1'b0;
                     data_out.fu_mem_done = 1'b0;
@@ -126,7 +129,6 @@ module fu_mem(
         
         // From PRF
         .ps2_data(ps2_data),
-        
         .issued(issued),
         .data_in(data_in),
         
@@ -135,6 +137,9 @@ module fu_mem(
         .rob_head(rob_head),
         .store_wb(store_wb),
         .data_out(lsq_out),
+        .store_done(store_done),
+        .store_ready(store_ready),
+        .store_rob_tag(store_rob_tag),
         .full(lsq_full) 
     );
     

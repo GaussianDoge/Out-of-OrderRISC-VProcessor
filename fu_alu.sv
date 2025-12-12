@@ -19,7 +19,9 @@ module fu_alu(
     // Output data
     output alu_data data_out
 );
+    
     always_comb begin
+        
         data_out.fu_alu_ready = 1'b1;
         data_out.fu_alu_done = 1'b0;
         if (mispredict) begin
@@ -33,7 +35,7 @@ module fu_alu(
                     data_out.fu_alu_done = 1'b0;
                 end
             end
-        end else begin
+        end else if (issued) begin
             data_out.p_alu = data_in.pd;
             data_out.rob_fu_alu = data_in.rob_index;
             if (data_in.Opcode == 7'b0010011) begin
@@ -58,4 +60,5 @@ module fu_alu(
             data_out.fu_alu_done = 1'b1;
         end
     end
+    
 endmodule

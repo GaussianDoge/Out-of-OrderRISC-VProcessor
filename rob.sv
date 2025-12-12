@@ -43,7 +43,7 @@ module rob (
     
     logic [4:0]  w_ptr, r_ptr;      
     assign ptr = w_ptr;
-    assign head = r_ptr;
+    //assign head = r_ptr;
     
     logic [4:0]  ctr;            
     
@@ -94,6 +94,7 @@ module rob (
                 if (do_retire) begin
                     preg_old <= rob_table[r_ptr].pd_old;
                     valid_retired <= 1'b1;
+                    head <= r_ptr;
                     rob_table[r_ptr] <= '0;
                     r_ptr <= (r_ptr == 5'd15) ? 5'b0 : r_ptr + 1;
                 end
