@@ -91,6 +91,7 @@ module rs(
                 rs_table[i].age <= 3'b0;
                 rs_table[i].func3 <= 3'b0;
                 rs_table[i].func7 <= 7'b0;
+                rs_table[i].pc <= 32'b0;
             end
         end else begin           
             // if slot is free, insert instruction
@@ -118,6 +119,7 @@ module rs(
                 rs_table[index].fu <= fu_rdy;
                 rs_table[index].func3 <= instr.func3;
                 rs_table[index].func7 <= instr.func7;
+                rs_table[index].pc <= instr.pc;
 
             end else begin
                 

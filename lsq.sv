@@ -21,14 +21,13 @@ module lsq(
     input logic [4:0] rob_head,
     output logic store_wb,
     output lsq data_out,
-    output full,
-    input logic new_lsq_store
+    output full
 );
     lsq lsq_arr[0:7];
     logic [2:0] w_ptr;
     logic [2:0] r_ptr;
     logic [3:0] ctr;
-    logic pre;
+    logic [31:0] pre_pc;
     
     assign full = (ctr == 8);
     
@@ -39,7 +38,7 @@ module lsq(
             r_ptr <= '0;
             store_wb <= 1'b0;
             data_out <= '0;
-            pre <= 1'b0;
+            pre_pc <= 32'd1;
             for (logic [2:0] i = 0; i <= 7; i++) begin
                 lsq_arr[i] <= '0;
             end
@@ -47,7 +46,7 @@ module lsq(
             store_wb <= 1'b0;
             data_out <= '0;
             if (issued && !full) begin
-                if (data_in.Opcode == 7'b0100011 && new_lsq_store != pre) begin
+                if (data_in.Opcode == 7'b0100011 && data_in.pc != pre_pc) begin
                     lsq_arr[w_ptr].valid <= 1'b1;
                     lsq_arr[w_ptr].addr <= ps1_data + imm_in;
                     lsq_arr[w_ptr].rob_tag <= data_in.rob_index;
@@ -60,7 +59,7 @@ module lsq(
                     end
                     ctr <= ctr + 1;
                     w_ptr <= (w_ptr == 7) ? 0 : w_ptr + 1;
-                    pre <= new_lsq_store;
+                    pre_pc <= data_in.pc;
                 end 
             end 
             if (retired) begin
