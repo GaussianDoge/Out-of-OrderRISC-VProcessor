@@ -125,6 +125,18 @@ module dispatch(
     // Rename Stall Logic
     assign ready_in = alu_buf_ready_in && b_buf_ready_in && lsu_buf_ready_in;
     
+    // Pre-buffer set destination to not ready
+    wire dispatch_handshake = valid_in && ready_in;
+
+    assign alu_nr_reg_out = data_in.pd_new;
+    assign alu_nr_valid_out = dispatch_handshake && is_alu && (data_in.pd_new != 7'd0);
+
+    assign b_nr_reg_out = data_in.pd_new;
+    assign b_nr_valid_out = dispatch_handshake && is_b && (data_in.pd_new != 7'd0);
+
+    assign lsu_nr_reg_out = data_in.pd_new;
+    assign lsu_nr_valid_out = dispatch_handshake && is_mem && (data_in.pd_new != 7'd0);
+
     // Priority Logic
     rename_data active_packet;
     
@@ -160,36 +172,6 @@ module dispatch(
     assign rob_pd_new_out = active_packet.pd_new;
     assign rob_pd_old_out = active_packet.pd_old;
     assign rob_pc_out     = active_packet.pc;
-
-    // // Internal wire to capture the assigned ROB ID
-    // logic [4:0] rob_allocated_ptr; 
-
-    // // ROB
-    // rob u_rob (
-    //     .clk            (clk),
-    //     .reset          (reset),
-    //     .write_en       (rob_we),
-    //     .pd_new_in      (active_packet.pd_new), 
-    //     .pd_old_in      (active_packet.pd_old),
-    //     .pc_in          (active_packet.pc),
-    //     .fu_alu_done    (fu_alu_done),
-    //     .rob_fu_alu     (rob_fu_alu),
-    //     .fu_b_done      (fu_b_done),
-    //     .rob_fu_b       (rob_fu_b),
-    //     .fu_mem_done    (fu_mem_done),
-    //     .rob_fu_mem     (rob_fu_mem),
-        
-    //     .br_mispredict  (br_mispredict),
-    //     .branch         (1'b0), 
-    //     .mispredict_tag (mispredict_tag), // 5 bits?
-    //     .rob_tag_out    (rob_retire_tag), // 5 bits?
-    //     .valid_retired  (rob_retire_valid),
-    //     .pd_old_out     (retire_pd_old),
-    //     .complete_out   (), 
-    //     .full           (rob_is_full),
-    //     .empty          (),
-    //     .ptr            (rob_allocated_ptr)
-    // );
 
     // Readiness Logic
     assign query_ps1 = active_packet.ps1;
@@ -232,13 +214,11 @@ module dispatch(
         .clk(clk),
         .reset(reset),
         .fu_rdy(alu_rs_ready_in),
-        .valid_out(alu_rs_valid_out), 
+        .valid_out(alu_rs_valid_out),
         .data_out(alu_rs_data_out),
         .valid_in(alu_rs_write_en),
-        .ready_in(alu_rs_has_space), 
+        .ready_in(alu_rs_has_space),
         .instr(dispatch_packet),
-        .nr_reg(alu_nr_reg_out),
-        .nr_valid(alu_nr_valid_out),
         .reg1_rdy(preg1_rdy), .reg2_rdy(preg2_rdy), .reg3_rdy(preg3_rdy),
         .reg1_rdy_valid(preg1_valid), .reg2_rdy_valid(preg2_valid), .reg3_rdy_valid(preg3_valid),
         .flush(mispredict)
@@ -249,13 +229,11 @@ module dispatch(
         .clk(clk),
         .reset(reset),
         .fu_rdy(b_rs_ready_in),
-        .valid_out(b_rs_valid_out), 
+        .valid_out(b_rs_valid_out),
         .data_out(b_rs_data_out),
         .valid_in(b_rs_write_en),
-        .ready_in(b_rs_has_space), 
+        .ready_in(b_rs_has_space),
         .instr(dispatch_packet),
-        .nr_reg(b_nr_reg_out),
-        .nr_valid(b_nr_valid_out),
         .reg1_rdy(preg1_rdy), .reg2_rdy(preg2_rdy), .reg3_rdy(preg3_rdy),
         .reg1_rdy_valid(preg1_valid), .reg2_rdy_valid(preg2_valid), .reg3_rdy_valid(preg3_valid),
         .flush(mispredict)
@@ -266,13 +244,11 @@ module dispatch(
         .clk(clk),
         .reset(reset),
         .fu_rdy(lsu_rs_ready_in),
-        .valid_out(lsu_rs_valid_out), 
+        .valid_out(lsu_rs_valid_out),
         .data_out(lsu_rs_data_out),
         .valid_in(lsu_rs_write_en),
-        .ready_in(lsu_rs_has_space), 
+        .ready_in(lsu_rs_has_space),
         .instr(dispatch_packet),
-        .nr_reg(lsu_nr_reg_out),
-        .nr_valid(lsu_nr_valid_out),
         .reg1_rdy(preg1_rdy), .reg2_rdy(preg2_rdy), .reg3_rdy(preg3_rdy),
         .reg1_rdy_valid(preg1_valid), .reg2_rdy_valid(preg2_valid), .reg3_rdy_valid(preg3_valid),
         .flush(mispredict)

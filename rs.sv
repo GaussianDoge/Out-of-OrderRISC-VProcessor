@@ -15,10 +15,6 @@ module rs(
     output logic valid_out,
     output rs_data data_out,
     
-    // Set destination physical reg to not ready
-    output logic [6:0] nr_reg,
-    output logic nr_valid,
-    
     // combinational update readyness of src reg
     // when physical reg writes something, it will send reg_rdy_valid signal
     input logic [6:0] reg1_rdy,
@@ -112,7 +108,6 @@ module rs(
                 rs_table[index].valid <= 1'b0;
                 rs_table[index].Opcode <= instr.Opcode;
                 rs_table[index].pd <= instr.prd;
-                nr_reg <= instr.prd;
                 rs_table[index].ps1 <= instr.pr1;
                 rs_table[index].ps1_ready <= instr.pr1_ready;
                 rs_table[index].ps2 <= instr.pr2;
@@ -123,10 +118,9 @@ module rs(
                 rs_table[index].fu <= fu_rdy;
                 rs_table[index].func3 <= instr.func3;
                 rs_table[index].func7 <= instr.func7;
-                
-                nr_valid <= 1'b1;
+
             end else begin
-                nr_valid <= 1'b0;
+                
             end
             
             // issue
