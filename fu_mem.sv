@@ -146,6 +146,7 @@ module fu_mem(
         .issued(issued),
         .Opcode(data_in.Opcode),
         .func3(data_in.func3),
+        .rob_index(data_in.rob_index),
         
         // From LSQ for S-type
         .store_wb(store_wb),
