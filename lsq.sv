@@ -54,9 +54,8 @@ module lsq(
             r_ptr <= '0;
             store_wb <= 1'b0;
             data_out <= '0;
-            stall_load_data <= '0;
             load_forward_data <= '0;
-            for (logic [2:0] i = 0; i <= 7; i++) begin
+            for (int i = 0; i <= 7; i++) begin
                 lsq_arr[i] <= '0;
             end
         end else begin
@@ -81,7 +80,7 @@ module lsq(
 
             if (issued) begin
                 // Update store data in LSQ
-                for (logic [2:0] i = 0; i <= 7; i++) begin
+                for (int i = 0; i <= 7; i++) begin
                     if (lsq_arr[i].valid 
                     && !lsq_arr[i].valid_data 
                     && lsq_arr[i].rob_tag == data_in.rob_index) begin
