@@ -6,8 +6,8 @@ module lsq(
     input logic reset,
 
     // From RS_mem dispatch buffer (insert S-type in orders)
-    input logic [4:0] dispatch_rob_tag;
-    input logic dispatch_valid;
+    input logic [4:0] dispatch_rob_tag,
+    input logic dispatch_valid,
     
     // From FU_mem
     input logic [31:0] ps1_data,
