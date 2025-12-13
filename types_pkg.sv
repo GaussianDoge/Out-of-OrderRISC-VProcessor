@@ -107,10 +107,13 @@ package types_pkg;
 
     typedef struct packed {
         logic valid;
+        logic [31:0] pc;
+        logic [4:0] rob_tag;
         logic [31:0] addr;
-        logic [6:0] rob_tag;
         logic [31:0] ps2_data;
         logic [6:0] pd;
         logic sw_sh_signal;
+        logic store;
+        logic valid_data;
     } lsq;
 endpackage 

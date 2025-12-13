@@ -33,8 +33,6 @@ module fu_mem(
     logic store_wb;
     lsq lsq_out;
     logic lsq_full;
-    logic store_done;
-    logic store_ready;
     logic [4:0] store_rob_tag;
     
     always_comb begin
@@ -124,6 +122,9 @@ module fu_mem(
         .clk(clk),
         .reset(reset),
         
+        .dispatch_rob_tag(),
+        .dispatch_valid(),
+
         .ps1_data(ps1_data),
         .imm_in(data_in.imm),
         
@@ -136,9 +137,10 @@ module fu_mem(
         .retired(retired),
         .rob_head(rob_head),
         .store_wb(store_wb),
+
         .data_out(lsq_out),
-        .store_done(store_done),
-        .store_ready(store_ready),
+        .load_forward_data(),
+        .load_forward_valid(),
         .store_rob_tag(store_rob_tag),
         .full(lsq_full) 
     );
