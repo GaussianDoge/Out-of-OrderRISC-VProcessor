@@ -85,6 +85,9 @@ module processor(
     b_data b_data_out;
     mem_data mem_data_out;
 
+    // Dispatch to LSQ
+    logic dispatch_valid;
+
     // // PRF to RS (Set Readiness)
     // logic [6:0] rdy_reg1, rdy_reg2, rdy_reg3;
     // logic reg1_rdy_valid, reg2_rdy_valid, reg3_rdy_valid;
@@ -102,6 +105,9 @@ module processor(
         .alu_rs_valid_out(alu_issued), .alu_rs_data_out(alu_rs_data_out), .alu_rs_ready_in(alu_rdy),
         .b_rs_valid_out(b_issued), .b_rs_data_out(b_rs_data_out), .b_rs_ready_in(b_rdy),
         .lsu_rs_valid_out(mem_issued), .lsu_rs_data_out(lsu_rs_data_out), .lsu_rs_ready_in(lsu_rdy),
+
+        // Interface with LSQ
+        .lsq_alloc_valid_out(dispatch_valid),
         
         // Interface with PRF
         .query_ps1(dispatch_query_ps1), .query_ps2(dispatch_query_ps2),
@@ -289,6 +295,9 @@ module processor(
     fus fu(
         .clk(clk),
         .reset(reset),
+
+        // From Dispatch
+        .dispatch_valid(dispatch_valid),
 
         // From Reservation Stations
         .alu_issued(alu_issued), .alu_rs_data(alu_rs_data_out),

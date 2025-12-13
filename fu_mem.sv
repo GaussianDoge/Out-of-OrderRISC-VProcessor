@@ -13,6 +13,9 @@ module fu_mem(
     input logic mispredict,
     input logic [4:0] mispredict_tag,
     
+    // From Dispatch (LSQ Allocation)
+    input logic dispatch_valid,
+    
     // From RS and PRF
     input logic issued,
     input rs_data data_in,
@@ -29,11 +32,16 @@ module fu_mem(
     logic [4:0] rob_reg;
     logic load_en;
     
-    // LSQ
+    // LSQ Signals
     logic store_wb;
     lsq lsq_out;
     logic lsq_full;
     logic [4:0] store_rob_tag;
+    
+    // Forwarding Wires
+    logic [31:0] fwd_data;
+    logic fwd_valid;
+    logic safe_to_mem;
     
     always_comb begin
         // L-type and S-type instructions
@@ -53,7 +61,8 @@ module fu_mem(
             if (mispredict) begin
                 load_en <= 1'b0;
             end else begin
-                if (issued && data_in.Opcode == 7'b0000011 && !load_en) begin
+                // Load is issued & there isn't a load currently occuring & no FWD & memory address is safe to access
+                if (issued && data_in.Opcode == 7'b0000011 && !load_en && !fwd_valid && safe_to_mem) begin
                     load_en <= 1'b1;
                     pd_reg     <= data_in.pd;
                     rob_reg    <= data_in.rob_index;
@@ -84,37 +93,38 @@ module fu_mem(
             data_out.fu_mem_ready = 1'b0;
         end
         
-        if (mispredict) begin
-            automatic logic [4:0] ptr = (mispredict_tag == 15) ? 0 : mispredict_tag + 1;
-            for (logic [4:0] i = ptr; i != curr_rob_tag; i=(i==15)?0:i+1) begin
-                if (i == data_in.rob_index) begin
-                    data_out.p_mem = '0;
-                    data_out.rob_fu_mem = '0;
-                    data_out.data = '0;
-                    data_out.fu_mem_ready = 1'b1;
-                    data_out.fu_mem_done = 1'b0;
-                end
-            end
-        end else begin
+        if (!mispredict) begin
             if (issued) begin
-                if (data_in.Opcode == 7'b0100011 && !lsq_full) begin // sw
+                if (data_in.Opcode == 7'b0100011 && !lsq_full) begin // SW
                     data_out.fu_mem_ready = 1'b1;
                     data_out.fu_mem_done = 1'b1;
-                    data_out.rob_fu_mem = store_rob_tag;
-                end else if (data_in.Opcode == 7'b0000011 && !load_en) begin // lw
-                    data_out.fu_mem_ready = 1'b0;
-                    data_out.fu_mem_done = 1'b0;
-                    //data_out.p_mem = data_in.pd;
-                    data_out.rob_fu_mem = data_in.rob_index;
+                    data_out.rob_fu_mem = store_rob_tag; 
+                end 
+                else if (data_in.Opcode == 7'b0000011) begin // LW
+                    // FWD hit
+                    if (fwd_valid) begin
+                        data_out.fu_mem_done = 1'b1;      
+                        data_out.data = fwd_data;         
+                        data_out.p_mem = data_in.pd;
+                        data_out.rob_fu_mem = data_in.rob_index;
+                    end
+                    // Memory hazard
+                    else if (!safe_to_mem) begin
+                        // Hazard detected. We stall ready, but we don't latch internally.
+                        // Ideally RS should retry.
+                        data_out.fu_mem_ready = 1'b0;
+                    end
                 end
             end
-//            if (valid && load_en) begin
-//                data_out.fu_mem_ready = 1'b1;      // free again
-//                data_out.fu_mem_done  = 1'b1;
-//                data_out.p_mem        = pd_reg;
-//                data_out.rob_fu_mem   = rob_reg;
-//                data_out.data         = data_mem;
-//            end
+            
+            // Memory response
+            if (valid && load_en) begin
+                data_out.fu_mem_ready = 1'b1;   // free again     
+                data_out.fu_mem_done  = 1'b1;
+                data_out.p_mem        = pd_reg;
+                data_out.rob_fu_mem   = rob_reg;
+                data_out.data         = data_mem;
+            end
         end
     end
     
@@ -122,8 +132,8 @@ module fu_mem(
         .clk(clk),
         .reset(reset),
         
-        .dispatch_rob_tag(),
-        .dispatch_valid(),
+        .dispatch_rob_tag(curr_rob_tag),
+        .dispatch_valid(dispatch_valid),
 
         .ps1_data(ps1_data),
         .imm_in(data_in.imm),
@@ -139,11 +149,18 @@ module fu_mem(
         .store_wb(store_wb),
 
         .data_out(lsq_out),
-        .load_forward_data(),
-        .load_forward_valid(),
+        
+        .load_forward_data(fwd_data),
+        .load_forward_valid(fwd_valid),
+        .load_mem(safe_to_mem),
+        
         .store_rob_tag(store_rob_tag),
         .full(lsq_full) 
     );
+    
+    // Drive Memory only if safe and not FWD
+    logic dmem_issued;
+    assign dmem_issued = issued && (data_in.Opcode == 7'b0000011) && safe_to_mem && !fwd_valid;
     
     data_memory u_dmem (
         .clk(clk),

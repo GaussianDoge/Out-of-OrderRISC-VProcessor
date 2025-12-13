@@ -32,7 +32,7 @@ module lsq(
     output logic load_forward_valid,
     output logic load_mem,
     output logic [4:0] store_rob_tag,
-    output full
+    output logic full
 );
     lsq lsq_arr[0:7];
     logic [2:0] w_ptr; // write pointer points to the next free entry
@@ -54,7 +54,7 @@ module lsq(
             r_ptr <= '0;
             store_wb <= 1'b0;
             data_out <= '0;
-            load_forward_data <= '0;
+            // load_forward_data <= '0;
             for (int i = 0; i <= 7; i++) begin
                 lsq_arr[i] <= '0;
             end
@@ -135,6 +135,69 @@ module lsq(
                 end
             end 
         end 
+    end
+
+    always_comb begin
+        // Default
+        load_forward_data = '0;
+        load_forward_valid = 0;
+        load_mem = 1'b1;
+        // Issuing Load
+        if (issued && data_in.Opcode == 7'b0000011) begin
+            logic [2:0] temp_ptr;
+            temp_ptr = r_ptr;
+
+            // Loop through LSQ
+            for (int i = 0; i <= 7; i++) begin
+                if (lsq_arr[temp_ptr].valid && lsq_arr[temp_ptr].store) begin
+
+                    // If store is older
+                    if (lsq_arr[temp_ptr].pc < data_in.pc) begin
+                        // Data isn't valid yet
+                        if(!lsq_arr[temp_ptr].valid_data) begin
+                            load_mem = 1'b0;
+                            load_forward_valid = 1'b0;
+                        end else begin
+                            // Logic for checking if a load is in the right range (LBU)
+                            logic [31:0] store_addr = lsq_arr[temp_ptr].addr;
+                            logic is_word = !lsq_arr[temp_ptr].sw_sh_signal;
+                            logic [31:0] limit = is_word ? 4 : 2;
+                            
+                            // Check if Load Address falls inside Store Range
+                            if (addr >= store_addr && addr < (store_addr + limit)) begin
+                                // If address overlaps
+                                // SW to LW (Word to Word) - Forward
+                                if (addr == store_addr && data_in.func3 == 3'b010 && is_word) begin
+                                    load_forward_valid = 1'b1;
+                                    load_forward_data = lsq_arr[temp_ptr].ps2_data;
+                                    load_mem = 1'b0;
+                                end
+                                // SW/SH to LBU (Byte Extraction) - Forward as the byte is inside the store data
+                                else if (data_in.func3 == 3'b100) begin 
+                                    load_forward_valid = 1'b1;
+                                    load_mem = 1'b0;
+                                    
+                                    // Calculate byte offset (0, 1, 2, or 3) and extract byte & zero extend (LBU)
+                                    case (addr[1:0] - store_addr[1:0])
+                                        2'b00: load_forward_data = {24'b0, lsq_arr[temp_ptr].ps2_data[7:0]};
+                                        2'b01: load_forward_data = {24'b0, lsq_arr[temp_ptr].ps2_data[15:8]};
+                                        2'b10: load_forward_data = {24'b0, lsq_arr[temp_ptr].ps2_data[23:16]};
+                                        2'b11: load_forward_data = {24'b0, lsq_arr[temp_ptr].ps2_data[31:24]};
+                                    endcase
+                                end
+                                else begin
+                                    // Complex/Partial overlap not covered above (e.g. SH -> LW)
+                                    // Must Stall
+                                    load_mem = 1'b0; 
+                                end
+                            end
+                        end
+                    end
+                end
+                // Move to next entry in circular buffer
+                temp_ptr = (temp_ptr == 7) ? 0 : temp_ptr + 1;
+            end
+        end
     end
 
 

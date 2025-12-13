@@ -27,6 +27,9 @@ module dispatch(
     output rs_data lsu_rs_data_out,
     input  logic lsu_rs_ready_in,
 
+    // LSQ
+    output logic lsq_alloc_valid_out,
+
     // Interface with PRF (Set Busy / Allocation)
     output logic [6:0] alu_nr_reg_out,
     output logic alu_nr_valid_out,
@@ -136,6 +139,8 @@ module dispatch(
 
     assign lsu_nr_reg_out = data_in.pd_new;
     assign lsu_nr_valid_out = dispatch_handshake && is_mem && (data_in.pd_new != 7'd0);
+
+    assign lsq_alloc_valid_out = dispatch_handshake && is_mem;
 
     // Priority Logic
     rename_data active_packet;

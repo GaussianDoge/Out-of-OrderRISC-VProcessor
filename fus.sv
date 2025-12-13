@@ -3,6 +3,9 @@
 module fus(
     input logic clk,
     input logic reset,
+
+    // From Dispatch
+    input logic dispatch_valid,
     
     // From Reservation Stations
     input logic alu_issued,
@@ -67,6 +70,9 @@ module fus(
         .curr_rob_tag(curr_rob_tag),
         .mispredict(mispredict),
         .mispredict_tag(mispredict_tag),
+
+        // From Dispatch
+        .dispatch_valid(dispatch_valid),
         
         // From RS and PRF
         .issued(mem_issued),
