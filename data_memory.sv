@@ -13,6 +13,7 @@ module data_memory(
     // From LSQ for S-type
     input logic store_wb,
     input lsq lsq_in,
+    input logic load_mem,
     
     // Output
     output mem_data data_out,

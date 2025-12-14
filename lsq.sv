@@ -147,7 +147,7 @@ module lsq(
         // Default
         load_forward_data = '0;
         load_forward_valid = 0;
-        load_mem = 1'b1;
+        load_mem = 1'b0;
         // Issuing Load
         if (issued && data_in.Opcode == 7'b0000011) begin
             logic [2:0] temp_ptr;
@@ -205,7 +205,7 @@ module lsq(
                             end else if (addr >= store_addr && addr <= (store_addr + limit)) begin // check for two incompleted overlap store
                                 // Previous perfect match not found
                                 // then fall into incompleted overlap case
-                                load_mem = 1'b0;
+                                load_mem = 1'b1;
                                 load_forward_valid = 1'b0;
                             end
                         end

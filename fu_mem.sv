@@ -103,7 +103,8 @@ module fu_mem(
                 else if (data_in.Opcode == 7'b0000011) begin // LW
                     // FWD hit
                     if (fwd_valid) begin
-                        data_out.fu_mem_done = 1'b1;      
+                        data_out.fu_mem_done = 1'b1;
+                        data_out.fu_mem_ready = 1'b1;      
                         data_out.data = fwd_data;         
                         data_out.p_mem = data_in.pd;
                         data_out.rob_fu_mem = data_in.rob_index;
