@@ -112,6 +112,7 @@ package types_pkg;
         logic [31:0] addr;
         logic [31:0] ps2_data;
         logic [6:0] pd;
+        logic [2:0] func3;
         logic sw_sh_signal;
         logic store;
         logic valid_data;

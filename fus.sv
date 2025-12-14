@@ -38,7 +38,9 @@ module fus(
     // Output data
     output alu_data alu_out,
     output b_data b_out,
-    output mem_data mem_out
+    output mem_data mem_out,
+    output logic [4:0] store_rob_tag,
+    output logic store_lsq_done
 );
     assign br_mispredict = b_out.mispredict;
     assign br_mispredict_tag = b_out.mispredict_tag;
@@ -83,7 +85,9 @@ module fus(
         .ps2_data(ps2_mem_data),
         
         // Output
-        .data_out(mem_out)
+        .data_out(mem_out),
+        .store_rob_tag(store_rob_tag),
+        .store_lsq_done(store_lsq_done)
     );
     
     fu_branch u_branch (

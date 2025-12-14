@@ -138,6 +138,9 @@ module processor(
         .mispredict(mispredict)
     );
 
+    logic [4:0] store_rob_tag;
+    logic store_lsq_done;
+
     // ROB (Reorder Buffer)
     rob u_rob(
         .clk(clk),
@@ -156,6 +159,8 @@ module processor(
         .rob_fu_b(b_data_out.rob_fu_b),
         .fu_mem_done(mem_data_out.fu_mem_done),
         .rob_fu_mem(mem_data_out.rob_fu_mem),
+        .store_rob_tag(store_rob_tag),
+        .store_lsq_done(store_lsq_done),
         
         // Branch Mispredict (From FU Branch)
         .br_mispredict(b_data_out.mispredict),
@@ -329,6 +334,8 @@ module processor(
         // Output data
         .alu_out(alu_data_out),
         .b_out(b_data_out),
-        .mem_out(mem_data_out)
+        .mem_out(mem_data_out),
+        .store_rob_tag(store_rob_tag),
+        .store_lsq_done(store_lsq_done)
     );
 endmodule

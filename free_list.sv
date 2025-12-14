@@ -1,5 +1,5 @@
 module free_list#(
-parameter int DEPTH = 96
+parameter int DEPTH = 128
 )(
     input logic clk,
     input logic reset,
@@ -38,7 +38,7 @@ parameter int DEPTH = 96
     logic do_write;
     logic do_read;
     
-    assign do_write = write_en && (ctr!=7'd96);
+    assign do_write = write_en && (ctr!=7'd128);
     assign do_read = read_en && (ctr!=0);
     
     logic [6:0] distance;
@@ -53,7 +53,7 @@ parameter int DEPTH = 96
         if (reset) begin
             w_ptr    <= 0;
             r_ptr    <= 0;
-            ctr      <= 7'd96;
+            ctr      <= 127;
             // Start allocation at p32 as p0-p31 are reserved for x0-x31
             for (int i = 0; i < DEPTH; i++) begin
                 list[i] <= i + 32;
@@ -68,13 +68,13 @@ parameter int DEPTH = 96
             end else begin
                 // Normal Read (Allocation)
                 if (do_read) begin
-                    r_ptr <= (r_ptr == 95) ? 0 : r_ptr + 1;
+                    r_ptr <= (r_ptr == 127) ? 0 : r_ptr + 1;
                 end
                 
                 // Normal Write (Freeing/Commit)
                 if (do_write) begin
                     list[w_ptr] <= data_in; // CRITICAL: Actually save the ID
-                    w_ptr       <= (w_ptr == 95) ? 0 : w_ptr + 1;
+                    w_ptr       <= (w_ptr == 127) ? 0 : w_ptr + 1;
                 end
             
                 // Counter Update

@@ -29,12 +29,14 @@ module lsq(
     output logic store_wb,
 
     output lsq data_out,
+    output lsq data_load,
 
     // To do: data forwarding for load instructions
     output logic [31:0] load_forward_data,
     output logic load_forward_valid,
     output logic load_mem,
-    output logic [4:0] store_rob_tag,
+    output logic [4:0] store_rob_tag, // for lsq writeback
+    output logic store_lsq_done,
     output logic full
 );
     lsq lsq_arr[0:7];
@@ -89,6 +91,7 @@ module lsq(
                     ctr <= new_ctr;
                 end
             end
+            store_lsq_done <= 1'b0;
 
             // Reserve position for load and store in LSQ in order (from dispatch buffer)
             if (dispatch_valid && !full) begin
@@ -125,10 +128,12 @@ module lsq(
                             end else if (data_in.func3 == 3'b001) begin // sh
                                 lsq_arr[i].sw_sh_signal <= 1'b1;
                             end
+                            store_rob_tag <= data_in.rob_index;
+                            store_lsq_done <= 1'b1;
                         end else begin // load
                             lsq_arr[i].store <= 1'b0;
                         end
-                        store_rob_tag = data_in.rob_index;
+                        
                     end
                 end
 
@@ -176,6 +181,7 @@ module lsq(
         load_forward_data = '0;
         load_forward_valid = 0;
         load_mem = 1'b0;
+        data_load = '0;
         // Issuing Load
         if (issued && data_in.Opcode == 7'b0000011) begin
             logic [2:0] temp_ptr;
@@ -183,10 +189,9 @@ module lsq(
 
             // Loop through LSQ
             for (int i = 0; i <= 7; i++) begin
-                if (lsq_arr[temp_ptr].valid && lsq_arr[temp_ptr].store) begin
-
-                    // If store is older
-                    if (lsq_arr[temp_ptr].pc < data_in.pc) begin
+                if (lsq_arr[temp_ptr].pc < data_in.pc
+                    && lsq_arr[temp_ptr].valid_data 
+                    && lsq_arr[temp_ptr].store) begin
                         // Data isn't valid yet
                         if(!lsq_arr[temp_ptr].valid_data) begin
                             load_mem = 1'b0;
@@ -207,8 +212,8 @@ module lsq(
                             if (addr >= store_addr && addr + offset <= (store_addr + limit)) begin
                                 // If address overlaps
                                 // SW to LW (Word to Word) - Forward
-                                $display("LSQ: Load Forwarding from Store rob=%0d addr=0x%08h data=0x%08h",
-                                    lsq_arr[temp_ptr].rob_tag, lsq_arr[temp_ptr].addr, lsq_arr[temp_ptr].ps2_data);
+                                $display("LSQ: Load Forwarding from Store rob=%0d addr=0x%08h data=0x%08h To Load rob=%0d addr=0x%08h",
+                                    lsq_arr[temp_ptr].rob_tag, lsq_arr[temp_ptr].addr, lsq_arr[temp_ptr].ps2_data, data_in.rob_index, addr);
                                 if (addr == store_addr && data_in.func3 == 3'b010 && is_word) begin
                                     load_forward_valid = 1'b1;
                                     load_forward_data = lsq_arr[temp_ptr].ps2_data;
@@ -240,7 +245,12 @@ module lsq(
                                 $display("LSQ: Load Stalled due to incompleted overlap store");
                             end
                         end
-                    end
+                end else if (!lsq_arr[temp_ptr].valid_data 
+                            && lsq_arr[temp_ptr].pc < data_in.pc) begin
+                    load_mem = 1'b0;
+                    load_forward_valid = 1'b0;
+                    $display("LSQ: Load Stalled load Rob=%0d",
+                        data_in.rob_index);
                 end
                 // Move to next entry in circular buffer
                 temp_ptr = (temp_ptr == 7) ? 0 : temp_ptr + 1;

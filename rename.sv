@@ -41,13 +41,13 @@ module rename(
     
     // Support mispeculation 
     logic [6:0] re_map [0:31];
-    logic [6:0] re_list [0:95];
+    logic [6:0] re_list [0:127];
     logic [6:0] re_r_ptr;
     logic [6:0] re_w_ptr;
     
     logic [6:0] r_ptr_list;
     logic [6:0] w_ptr_list;
-    logic [6:0] list [0:95];
+    logic [6:0] list [0:127];
     logic [6:0] map [0:31];
     
     // Speculation is 1 when we encounter a branch instruction

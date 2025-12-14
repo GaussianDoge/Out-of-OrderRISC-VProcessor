@@ -17,6 +17,8 @@ module rob (
     input logic [4:0] rob_fu_alu,
     input logic [4:0] rob_fu_b,
     input logic [4:0] rob_fu_mem,
+    input logic [4:0] store_rob_tag,
+    input logic store_lsq_done,
     input logic br_mispredict,
     input logic [4:0] br_mispredict_tag,
     
@@ -74,6 +76,9 @@ module rob (
             end
             if (fu_mem_done && rob_table[rob_fu_mem].valid) begin
                 rob_table[rob_fu_mem].complete <= 1'b1;
+            end
+            if (store_lsq_done && rob_table[store_rob_tag].valid) begin
+                rob_table[store_rob_tag].complete <= 1'b1;
             end
             // Mispredict operation
             if (br_mispredict) begin
