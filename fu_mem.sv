@@ -23,7 +23,9 @@ module fu_mem(
     input logic [31:0] ps2_data,
     
     // Output data
-    output mem_data data_out
+    output mem_data data_out,
+    output logic [4:0] store_rob_tag,
+    output logic store_lsq_done
 );
     logic valid;
     logic [31:0] addr;
@@ -35,8 +37,8 @@ module fu_mem(
     // LSQ Signals
     logic store_wb;
     lsq lsq_out;
+    lsq lsq_load;
     logic lsq_full;
-    logic [4:0] store_rob_tag;
     
     // Forwarding Wires
     logic [31:0] fwd_data;
@@ -61,17 +63,17 @@ module fu_mem(
             if (mispredict) begin
                 load_en <= 1'b0;
             end else begin
-                // Load is issued & there isn't a load currently occuring & no FWD & memory address is safe to access
-                if (issued && data_in.Opcode == 7'b0000011 && !load_en && !fwd_valid && safe_to_mem) begin
-                    load_en <= 1'b1;
-                    pd_reg     <= data_in.pd;
-                    rob_reg    <= data_in.rob_index;
-                end
+                // // Load is issued & there isn't a load currently occuring & no FWD & memory address is safe to access
+                // if (issued && data_in.Opcode == 7'b0000011 && !load_en && !fwd_valid && safe_to_mem) begin
+                //     load_en <= 1'b1;
+                //     pd_reg     <= data_in.pd;
+                //     rob_reg    <= data_in.rob_index;
+                // end
 
-                // Clear when memory returns valid data
-                if (valid && load_en) begin
-                    load_en <= 1'b0;
-                end
+                // // Clear when memory returns valid data
+                // if (valid && load_en) begin
+                //     load_en <= 1'b0;
+                // end
             end
         end
     end
@@ -86,7 +88,7 @@ module fu_mem(
         
         if (load_en) begin
             data_out.fu_mem_ready = 1'b0;
-        end 
+        end
         
         // stall if we're full when store
         if (data_in.Opcode == 7'b0100011 && lsq_full) begin
@@ -95,12 +97,12 @@ module fu_mem(
         
         if (!mispredict) begin
             if (issued) begin
-                if (data_in.Opcode == 7'b0100011 && !lsq_full) begin // SW
-                    data_out.fu_mem_ready = 1'b1;
-                    data_out.fu_mem_done = 1'b1;
-                    data_out.rob_fu_mem = store_rob_tag; 
-                end 
-                else if (data_in.Opcode == 7'b0000011) begin // LW
+                // if (data_in.Opcode == 7'b0100011 && !lsq_full) begin // SW
+                //     data_out.fu_mem_ready = 1'b1;
+                //     data_out.fu_mem_done = 1'b1;
+                //     //data_out.rob_fu_mem = store_rob_tag;
+                // end
+                if (data_in.Opcode == 7'b0000011) begin // LW
                     // FWD hit
                     if (fwd_valid) begin
                         data_out.fu_mem_done = 1'b1;
@@ -119,13 +121,13 @@ module fu_mem(
             end
             
             // Memory response
-            if (valid && load_en) begin
-                data_out.fu_mem_ready = 1'b1;   // free again     
-                data_out.fu_mem_done  = 1'b1;
-                data_out.p_mem        = pd_reg;
-                data_out.rob_fu_mem   = rob_reg;
-                data_out.data         = data_mem;
-            end
+            // if (valid && load_en) begin
+            //     data_out.fu_mem_ready = 1'b1;   // free again     
+            //     data_out.fu_mem_done  = 1'b1;
+            //     data_out.p_mem        = pd_reg;
+            //     data_out.rob_fu_mem   = rob_reg;
+            //     data_out.data         = data_mem;
+            // end
         end
     end
     
@@ -156,6 +158,7 @@ module fu_mem(
         .load_mem(safe_to_mem),
         
         .store_rob_tag(store_rob_tag),
+        .store_lsq_done(store_lsq_done),
         .full(lsq_full) 
     );
     
@@ -167,7 +170,6 @@ module fu_mem(
         .clk(clk),
         .reset(reset),
         
-        .addr(addr),
         .issued(issued),
         .data_in(data_in),
         
@@ -177,6 +179,7 @@ module fu_mem(
         
         // L type load enable
         .load_mem(dmem_issued),
+        .lsq_load(lsq_load),
         
         .data_out(data_out),
         .valid(valid)

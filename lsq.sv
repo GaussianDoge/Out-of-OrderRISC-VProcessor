@@ -31,7 +31,8 @@ module lsq(
     output logic [31:0] load_forward_data,
     output logic load_forward_valid,
     output logic load_mem,
-    output logic [4:0] store_rob_tag,
+    output logic [4:0] store_rob_tag, // for lsq writeback
+    output logic store_lsq_done,
     output logic full
 );
     lsq lsq_arr[0:7];
@@ -61,6 +62,7 @@ module lsq(
         end else begin
             store_wb <= 1'b0;
             data_out <= '0;
+            store_lsq_done <= 1'b0;
 
             // Reserve position for load and store in LSQ in order (from dispatch buffer)
             if (dispatch_valid && !full) begin
@@ -97,10 +99,12 @@ module lsq(
                             end else if (data_in.func3 == 3'b001) begin // sh
                                 lsq_arr[i].sw_sh_signal <= 1'b1;
                             end
+                            store_rob_tag <= data_in.rob_index;
+                            store_lsq_done <= 1'b1;
                         end else begin // load
                             lsq_arr[i].store <= 1'b0;
                         end
-                        store_rob_tag = data_in.rob_index;
+                        
                     end
                 end
 

@@ -6,14 +6,17 @@ module data_memory(
     input reset,
     
     // From FU Mem
-    input logic [31:0] addr,
+    //input logic [31:0] addr,
     input logic issued,
     input rs_data data_in,
     
     // From LSQ for S-type
     input logic store_wb,
     input lsq lsq_in,
+
+    // From LSQ for L-type
     input logic load_mem,
+    input lsq lsq_load,
     
     // Output
     output mem_data data_out,
@@ -57,38 +60,38 @@ module data_memory(
                     data_mem[lsq_in.addr] <= lsq_in.ps2_data[15:8];
                     data_mem[lsq_in.addr+1] <= lsq_in.ps2_data[7:0];
                 end
+                data_out.fu_mem_ready <= 1'b1;      // free again
+                // no need retire we already done in LSQ
                 $display("STORE_COMMIT rob=%0d addr=0x%08h data=0x%08h sw_sh=%0d",
                     lsq_in.rob_tag[4:0], lsq_in.addr, lsq_in.ps2_data, lsq_in.sw_sh_signal);
                 $display("M[%0d]=%8h", lsq_in.addr, lsq_in.ps2_data);
             end 
-            if (load_issue) begin
-                addr_reg  <= addr;
-                func3_reg <= func3;
-            end
+            // if (load_issue) begin
+            //     addr_reg  <= addr;
+            //     func3_reg <= func3;
+            // end
             
-            valid_2cycles <= load_issue && load_mem;
+            //valid_2cycles <= load_issue && load_mem;
 
             // When v2==1, 2 cycles after load_issue, return data
-            if (valid_2cycles) begin
+            if (load_mem && !lsq_load.store) begin
                 valid <= 1'b1;
-                pre_rob_index <= rob_index;
                 
-                
-                if (func3_reg == 3'b100) begin // lbu
+                if (lsq_load.func3 == 3'b100) begin // lbu
                     data_out.data <= {{24{1'b0}}, data_mem[addr_reg]};
-                    data_out.p_mem <= data_in.pd;
+                    data_out.p_mem <= lsq_load.pd;
                     data_out.fu_mem_ready <= 1'b1;      // free again
-                    data_out.fu_mem_done  <= 1'b1;
-                    data_out.rob_fu_mem <= data_in.rob_index;
+                    data_out.fu_mem_done  <= 1'b1;      // retire
+                    data_out.rob_fu_mem <= lsq_load.rob_tag;
                     
                     $display("Load Byte Unsigned");
                     $display("M[%5d]=%32h", addr_reg, {{24{1'b0}}, data_mem[addr_reg]});
-                end else if (func3_reg == 3'b010) begin // lw
+                end else if (lsq_load.func3 == 3'b010) begin // lw
                     data_out.data <= {data_mem[addr_reg], data_mem[addr_reg+1],
                                   data_mem[addr_reg+2], data_mem[addr_reg+3]};
                     data_out.p_mem <= data_in.pd;
                     data_out.fu_mem_ready <= 1'b1;      // free again
-                    data_out.fu_mem_done  <= 1'b1;
+                    data_out.fu_mem_done  <= 1'b1;      // retire
                     data_out.rob_fu_mem <= data_in.rob_index;
                     $display("Load Word");
                     $display("M[%5d]=%32h", addr_reg, {data_mem[addr_reg], data_mem[addr_reg+1],
@@ -97,4 +100,5 @@ module data_memory(
             end
         end
     end
+
 endmodule
