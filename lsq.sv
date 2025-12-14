@@ -126,9 +126,15 @@ module lsq(
                 // end
             end 
             if (retired) begin
-                if (lsq_arr[r_ptr].valid_data && rob_head == lsq_arr[r_ptr].rob_tag) begin
+                if (lsq_arr[r_ptr].valid_data && rob_head == lsq_arr[r_ptr].rob_tag && lsq_arr[r_ptr].store) begin
                     store_wb <= 1'b1;
                     data_out <= lsq_arr[r_ptr];
+                    lsq_arr[r_ptr] <= '0;
+                    r_ptr <= (r_ptr == 7) ? 0 : r_ptr + 1;
+                    ctr <= ctr - 1;
+                end else if (lsq_arr[r_ptr].valid_data && rob_head == lsq_arr[r_ptr].rob_tag && !lsq_arr[r_ptr].store) begin
+                    store_wb <= 1'b0;
+                    data_out <= '0;
                     lsq_arr[r_ptr] <= '0;
                     r_ptr <= (r_ptr == 7) ? 0 : r_ptr + 1;
                     ctr <= ctr - 1;
@@ -161,10 +167,16 @@ module lsq(
                             // Logic for checking if a load is in the right range (LBU)
                             logic [31:0] store_addr = lsq_arr[temp_ptr].addr;
                             logic is_word = !lsq_arr[temp_ptr].sw_sh_signal;
-                            logic [31:0] limit = is_word ? 4 : 2;
-                            
+                            logic [31:0] limit = is_word ? 3 : 1;
+                            logic [31:0] offset;
+                            if (data_in.func3 == 3'b100) begin // lbu
+                                offset = 0;
+                            end else if (data_in.func3 == 3'b010) begin // lw
+                                offset = 3;
+                            end
+
                             // Check if Load Address falls inside Store Range
-                            if (addr >= store_addr && addr < (store_addr + limit)) begin
+                            if (addr >= store_addr && addr + offset <= (store_addr + limit)) begin
                                 // If address overlaps
                                 // SW to LW (Word to Word) - Forward
                                 if (addr == store_addr && data_in.func3 == 3'b010 && is_word) begin
@@ -190,6 +202,11 @@ module lsq(
                                     // Must Stall
                                     load_mem = 1'b0; 
                                 end
+                            end else if (addr >= store_addr && addr <= (store_addr + limit)) begin // check for two incompleted overlap store
+                                // Previous perfect match not found
+                                // then fall into incompleted overlap case
+                                load_mem = 1'b0;
+                                load_forward_valid = 1'b0;
                             end
                         end
                     end

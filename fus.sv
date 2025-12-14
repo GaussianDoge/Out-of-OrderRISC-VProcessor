@@ -6,6 +6,7 @@ module fus(
 
     // From Dispatch
     input logic dispatch_valid,
+    input logic [4:0] dispatch_rob_tag,
     
     // From Reservation Stations
     input logic alu_issued,
@@ -67,7 +68,7 @@ module fus(
         // From ROB
         .retired(retired),
         .rob_head(rob_head),
-        .curr_rob_tag(curr_rob_tag),
+        .dispatch_rob_tag(dispatch_rob_tag),
         .mispredict(mispredict),
         .mispredict_tag(mispredict_tag),
 

@@ -9,7 +9,7 @@ module fu_mem(
     // From ROB
     input logic retired,
     input logic [4:0] rob_head,
-    input logic [4:0] curr_rob_tag,
+    input logic [4:0] dispatch_rob_tag,
     input logic mispredict,
     input logic [4:0] mispredict_tag,
     
@@ -132,7 +132,7 @@ module fu_mem(
         .clk(clk),
         .reset(reset),
         
-        .dispatch_rob_tag(curr_rob_tag),
+        .dispatch_rob_tag(dispatch_rob_tag),
         .dispatch_valid(dispatch_valid),
 
         .ps1_data(ps1_data),

@@ -87,6 +87,7 @@ module processor(
 
     // Dispatch to LSQ
     logic dispatch_valid;
+    logic [4:0] dispatch_rob_tag;
 
     // // PRF to RS (Set Readiness)
     // logic [6:0] rdy_reg1, rdy_reg2, rdy_reg3;
@@ -108,6 +109,7 @@ module processor(
 
         // Interface with LSQ
         .lsq_alloc_valid_out(dispatch_valid),
+        .lsq_dispatch_rob_tag(dispatch_rob_tag),
         
         // Interface with PRF
         .query_ps1(dispatch_query_ps1), .query_ps2(dispatch_query_ps2),
@@ -298,6 +300,7 @@ module processor(
 
         // From Dispatch
         .dispatch_valid(dispatch_valid),
+        .dispatch_rob_tag(dispatch_rob_tag),
 
         // From Reservation Stations
         .alu_issued(alu_issued), .alu_rs_data(alu_rs_data_out),
