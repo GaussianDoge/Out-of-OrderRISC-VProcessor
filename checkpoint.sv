@@ -11,5 +11,5 @@ module checkpoint(
     output logic checkpoint_valid
     );
 
-    
+
 endmodule

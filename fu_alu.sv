@@ -20,6 +20,7 @@ module fu_alu(
     output alu_data data_out
 );
     
+    
     always_comb begin
         
         data_out.fu_alu_ready = 1'b1;
