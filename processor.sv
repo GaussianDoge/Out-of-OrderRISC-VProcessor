@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+import types_pkg::*;
 
 module processor(
     input logic clk,
@@ -8,12 +9,14 @@ module processor(
     // General Signals
     logic [31:0] pc;
     logic mispredict;
-    logic [4:0]  mispredict_tag;
+    logic [4:0] mispredict_tag;
     
     always_ff @(posedge clk) begin
         if (reset) begin
             pc <= 32'd0;
-        end else if (pc <= 12 || frontend_valid_out && rename_ready_in && !mispredict) begin
+        end else if (b_data_out.fu_b_done && b_data_out.jalr_bne_signal) begin
+            pc <= b_data_out.pc;
+        end else if (frontend_valid_out && rename_ready_in && !mispredict) begin
             pc <= pc + 4;
         end
     end
@@ -91,7 +94,7 @@ module processor(
 
     // // PRF to RS (Set Readiness)
     // logic [6:0] rdy_reg1, rdy_reg2, rdy_reg3;
-    // logic reg1_rdy_valid, reg2_rdy_valid, reg3_rdy_valid;
+    // logic reg1_rdy_valid, reg2_rdy_valid, reg3_rdy_valid;    
     
     dispatch dispatch_unit(
         .clk(clk),

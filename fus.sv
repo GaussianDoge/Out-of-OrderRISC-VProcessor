@@ -69,6 +69,7 @@ module fus(
         .retired(retired),
         .rob_head(rob_head),
         .dispatch_rob_tag(dispatch_rob_tag),
+        .curr_rob_tag(curr_rob_tag),
         .mispredict(mispredict),
         .mispredict_tag(mispredict_tag),
 

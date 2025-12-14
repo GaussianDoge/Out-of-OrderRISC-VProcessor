@@ -12,6 +12,9 @@ module lsq(
     // From FU_mem
     input logic [31:0] ps1_data,
     input logic [31:0] imm_in,
+    input logic mispredict,
+    input logic [4:0] mispredict_tag,
+    input logic [4:0] curr_rob_tag,
     
     // From PRF 
     input logic [31:0] ps2_data,
@@ -61,6 +64,31 @@ module lsq(
         end else begin
             store_wb <= 1'b0;
             data_out <= '0;
+            if (mispredict) begin
+                automatic logic [4:0] ptr = (mispredict_tag == 15) ? 0 : mispredict_tag + 1;
+                automatic logic [3:0] new_ctr = '0;
+
+                for (logic [4:0] i = ptr; i != curr_rob_tag; i=(i==15)?0:i+1) begin
+                    for (logic [4:0] j = 0; j <= 7; j++) begin
+                        if (lsq_arr[j].valid && i == lsq_arr[j].rob_tag) begin
+                            lsq_arr[j] = '0;
+                        end
+                    end
+                end
+                
+                for (logic [4:0] i = 0; i <= 7; i++) begin
+                    if (lsq_arr[i].valid) begin
+                        new_ctr++;
+                    end
+                end
+                
+                if (new_ctr == 0) begin
+                    ctr   <= 0;
+                    r_ptr <= w_ptr;
+                end else begin
+                    ctr <= new_ctr;
+                end
+            end
 
             // Reserve position for load and store in LSQ in order (from dispatch buffer)
             if (dispatch_valid && !full) begin

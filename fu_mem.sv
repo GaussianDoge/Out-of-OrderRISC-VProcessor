@@ -10,6 +10,7 @@ module fu_mem(
     input logic retired,
     input logic [4:0] rob_head,
     input logic [4:0] dispatch_rob_tag,
+    input logic [4:0] curr_rob_tag,
     input logic mispredict,
     input logic [4:0] mispredict_tag,
     
@@ -148,6 +149,10 @@ module fu_mem(
         .retired(retired),
         .rob_head(rob_head),
         .store_wb(store_wb),
+        
+        .mispredict(mispredict),
+        .mispredict_tag(mispredict_tag),
+        .curr_rob_tag(curr_rob_tag),
 
         .data_out(lsq_out),
         
