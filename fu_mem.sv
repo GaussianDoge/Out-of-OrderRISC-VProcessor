@@ -175,6 +175,9 @@ module fu_mem(
         .store_wb(store_wb),
         .lsq_in(lsq_out),
         
+        // L type load enable
+        .load_mem(dmem_issued),
+        
         .data_out(data_out),
         .valid(valid)
     );

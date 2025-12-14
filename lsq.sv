@@ -179,6 +179,8 @@ module lsq(
                             if (addr >= store_addr && addr + offset <= (store_addr + limit)) begin
                                 // If address overlaps
                                 // SW to LW (Word to Word) - Forward
+                                $display("LSQ: Load Forwarding from Store rob=%0d addr=0x%08h data=0x%08h",
+                                    lsq_arr[temp_ptr].rob_tag, lsq_arr[temp_ptr].addr, lsq_arr[temp_ptr].ps2_data);
                                 if (addr == store_addr && data_in.func3 == 3'b010 && is_word) begin
                                     load_forward_valid = 1'b1;
                                     load_forward_data = lsq_arr[temp_ptr].ps2_data;
@@ -207,6 +209,7 @@ module lsq(
                                 // then fall into incompleted overlap case
                                 load_mem = 1'b1;
                                 load_forward_valid = 1'b0;
+                                $display("LSQ: Load Stalled due to incompleted overlap store");
                             end
                         end
                     end

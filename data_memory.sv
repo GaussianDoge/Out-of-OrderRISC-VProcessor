@@ -59,15 +59,14 @@ module data_memory(
                 end
                 $display("STORE_COMMIT rob=%0d addr=0x%08h data=0x%08h sw_sh=%0d",
                     lsq_in.rob_tag[4:0], lsq_in.addr, lsq_in.ps2_data, lsq_in.sw_sh_signal);
-                $display("M[65568]=%32h", {data_mem[65568], data_mem[65568+1],data_mem[65568+2], data_mem[65568+3]});
-                $display("M[65572]=%32h", {data_mem[65568+4], data_mem[65568+5],data_mem[65568+6], data_mem[65568+7]});
+                $display("M[%0d]=%8h", lsq_in.addr, lsq_in.ps2_data);
             end 
             if (load_issue) begin
                 addr_reg  <= addr;
                 func3_reg <= func3;
             end
             
-            valid_2cycles <= load_issue;
+            valid_2cycles <= load_issue && load_mem;
 
             // When v2==1, 2 cycles after load_issue, return data
             if (valid_2cycles) begin
