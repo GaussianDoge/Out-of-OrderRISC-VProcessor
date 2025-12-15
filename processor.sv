@@ -81,6 +81,7 @@ module processor(
        // From ROB
        .mispredict(mispredict),
        .mispredict_tag(mispredict_tag),
+       .rd(rename_data_out.pd_new),
 
        // From PRF
        .reg_rdy_snap_shot(reg_rdy_snap_shot),

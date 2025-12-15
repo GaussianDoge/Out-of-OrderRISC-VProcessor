@@ -14,6 +14,7 @@ module checkpoint(
     // From ROB
     input logic mispredict,
     input logic [4:0] mispredict_tag,
+    input logic [6:0] rd,
 
     // From PRF
     input logic [127:0] reg_rdy_snap_shot,
@@ -34,7 +35,7 @@ module checkpoint(
             if (branch_detect) begin
                 for (int i = 0; i < 4; i++) begin
                     if (!chkpt[i].valid) begin
-                        chkpt[i].valid = 1'b1;
+                        chkpt[i].valid <= 1'b1;
                         chkpt[i].pc <= branch_pc;
                         chkpt[i].rob_tag <= branch_rob_tag;
                         chkpt[i].reg_rdy_table <= reg_rdy_snap_shot;

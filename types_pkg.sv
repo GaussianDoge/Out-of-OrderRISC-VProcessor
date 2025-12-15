@@ -72,7 +72,6 @@ package types_pkg;
         logic [31:0] imm;
         logic [4:0] rob_index;
         logic [1:0] fu;
-        logic ready;
         logic [31:0] pc;
         logic [2:0] age;
     } rs_data;

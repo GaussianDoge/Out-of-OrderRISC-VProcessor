@@ -40,7 +40,7 @@ module tb_processor;
         reset = 1'b0;
 
         // Let the program run for some cycles (adjust as needed)
-        repeat (500) @(posedge clk);
+        repeat (1000) @(posedge clk);
 
         // Dump a0 and a1 at the end
         dump_a0_a1();
