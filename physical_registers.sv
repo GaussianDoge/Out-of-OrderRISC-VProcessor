@@ -112,7 +112,7 @@ module physical_registers(
                 b_r1 = phy_reg[target_b_r1];
             end
             
-            if (read_alu_r2) begin
+            if (read_b_r2) begin
                 b_r2 = phy_reg[target_b_r2];
             end
             

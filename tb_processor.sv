@@ -92,19 +92,19 @@ module tb_processor;
     end
     
     // Safety Timeout: Force stop if simulation runs too long (prevents infinite waits)
-    initial begin
-        #10000; // 10,000 ns limit
-        $display("\n[ERROR] Simulation Timed Out! Force finishing.");
-        dump_a0_a1();
-        $finish;
-    end
+//    initial begin
+//        #10000; // 10,000 ns limit
+//        $display("\n[ERROR] Simulation Timed Out! Force finishing.");
+//        dump_a0_a1();
+//        $finish;
+//    end
 
     // Task to dump the architectural a0/a1
     task dump_a0_a1;
         logic [6:0] pr_a0, pr_a1;
         logic [31:0] val_a0, val_a1;
     begin
-        pr_a0 = dut.rename_unit.map[5'd7];
+        pr_a0 = dut.rename_unit.map[5'd8];
         pr_a1 = dut.rename_unit.map[5'd11];
         val_a0 = dut.PRF.phy_reg[pr_a0];
         val_a1 = dut.PRF.phy_reg[pr_a1];
