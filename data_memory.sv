@@ -29,8 +29,8 @@ module data_memory(
     assign Opcode = data_in.Opcode;
     assign func3 = data_in.func3;
     assign rob_index = data_in.rob_index;
-    
-    logic [7:0] data_mem [0:102400]; // 100 KB memory
+
+    logic [0:204800] [7:0]data_mem= '0; // 100 KB memory
     // logic valid_2cycles;
     logic [31:0] addr_reg;
     // logic [2:0]  func3_reg;
@@ -46,7 +46,7 @@ module data_memory(
             valid <= 1'b0;
             // valid_2cycles <= 1'b0;
             pre_rob_index <= 5'b11111;
-            for (int i = 0; i <= 102400; i++) begin
+            for (int i = 0; i <= 204800; i++) begin
                 data_mem[i] <= '0;
             end
         end else begin

@@ -69,8 +69,8 @@ module tb_processor;
 
         $display("=================================================");
         $display("End of simulation register dump:");
-        $display("  a0 (x10): phys %0d = 0x%08h (%0d)", pr_a0, val_a0, val_a0);
-        $display("  a1 (x11): phys %0d = 0x%08h (%0d)", pr_a1, val_a1, val_a1);
+        $display("  a0 (x10): phys %0d = 0x%08h (%0d)", pr_a0, val_a0, $signed(val_a0));
+        $display("  a1 (x11): phys %0d = 0x%08h (%0d)", pr_a1, val_a1, $signed(val_a1));
         $display("=================================================");
     end
     endtask
