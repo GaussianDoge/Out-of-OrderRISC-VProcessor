@@ -26,8 +26,9 @@ module ImmGen(
             end
             // BNE
             7'b1100011: begin
-                imm_12bits = {instr[31], instr[7], instr[30:25], instr[11:8]};
-                imm = {{19{imm_12bits[11]}}, imm_12bits<<1'b1};
+                // imm_12bits = {instr[31], instr[7], instr[30:25], instr[11:8]};
+                // imm = {{19{imm_12bits[11]}}, imm_12bits<<1'b1};
+                imm = {{20{instr[31]}}, instr[7], instr[30:25], instr[11:8], 1'b0};
             end
             // S-type
             7'b0100011: begin
