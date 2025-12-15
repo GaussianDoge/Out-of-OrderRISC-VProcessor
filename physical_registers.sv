@@ -86,7 +86,7 @@ module physical_registers(
     input logic [6:0] branch_rd,
 
     // Snap shot for checkpoint
-    output reg [127:0] reg_rdy_sanp_shot
+    output reg [127:0] reg_rdy_snap_shot
     );
     
     reg [127:0][31:0] phy_reg;
@@ -175,7 +175,7 @@ module physical_registers(
         end else begin
             // Write for ALU
             if (mispredict) begin
-                if (checkpoint_valide) begin
+                if (checkpoint_valid) begin
                     reg_rdy_table <= checkpoint.reg_rdy_table;
                 end
             end else begin
