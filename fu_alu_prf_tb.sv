@@ -4,7 +4,7 @@ import types_pkg::*;
 // Simple integration test: fu_alu + phys_reg_file
 module fu_alu_prf_tb;
 
-  // Clock / reset 
+  // Clock / reset
   logic clk;
   logic reset;
 
