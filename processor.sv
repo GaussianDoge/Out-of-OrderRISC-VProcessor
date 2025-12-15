@@ -67,7 +67,7 @@ module processor(
 
    logic not_rdy_pr_valid;
    assign not_rdy_pr_valid =  alu_nr_valid || b_nr_valid || lsu_nr_valid;
-   logic [6:0] not_rdy_pr;
+   logic [6:0] not_rdy_reg;
 
    checkpoint snapshot_out;
 
@@ -81,7 +81,7 @@ module processor(
        .branch_detect(branch_detect),
        .branch_pc(rename_data_out.pc),
        .branch_rob_tag(rename_data_out.rob_tag),
-       .not_rdy_pr(not_rdy_pr),
+       .not_rdy_pr(not_rdy_reg),
        .not_rdy_pr_valid(not_rdy_pr_valid),
 
        // From ROB
@@ -158,7 +158,7 @@ module processor(
         .lsu_nr_reg_out(lsu_nr_reg), .lsu_nr_valid_out(lsu_nr_valid),
 
         // For checkpoint
-        .not_rdy_reg(not_rdy_pr),
+        .not_rdy_reg(not_rdy_reg),
 
         // CDB Inputs (For "Lost Wakeup" Check)
         .preg1_rdy(alu_data_out.p_alu), .preg1_valid(alu_data_out.fu_alu_done),
@@ -339,7 +339,10 @@ module processor(
         // Set Busy (From Dispatch Allocation)
         .alu_set_not_rdy(alu_nr_valid), .alu_rd(alu_nr_reg),
         .lsu_set_not_rdy(lsu_nr_valid), .lsu_rd(lsu_nr_reg),
-        .branch_set_not_rdy(b_nr_valid), .branch_rd(b_nr_reg)
+        .branch_set_not_rdy(b_nr_valid), .branch_rd(b_nr_reg),
+
+        // set current rename rd to ready
+        .not_rdy_reg(not_rdy_reg), .not_rdy_pr_valid(not_rdy_pr_valid)
     );
 
     // assign rdy_reg1 = target_alu_reg;

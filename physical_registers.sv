@@ -83,7 +83,11 @@ module physical_registers(
     input logic branch_set_not_rdy,
     input logic [6:0] alu_rd,
     input logic [6:0] lsu_rd,
-    input logic [6:0] branch_rd
+    input logic [6:0] branch_rd,
+
+    // For mispredict
+    input logic [6:0] not_rdy_reg,
+    input logic not_rdy_pr_valid
     );
     
     reg [127:0][31:0] phy_reg;
@@ -146,17 +150,18 @@ module physical_registers(
                 branch_rs_rdy2 = reg_rdy_table[branch_pr2];
             end
             
-            if (alu_set_not_rdy) begin
+            if (alu_set_not_rdy && !mispredict) begin
                 reg_rdy_table[alu_rd] = 1'b0;
             end
             
-            if (lsu_set_not_rdy) begin
+            if (lsu_set_not_rdy && !mispredict) begin
                 reg_rdy_table[lsu_rd] = 1'b0;
             end
             
-            if (branch_set_not_rdy) begin
+            if (branch_set_not_rdy && !mispredict) begin
                 reg_rdy_table[branch_rd] = 1'b0;
             end
+
         end
     end
     
@@ -176,6 +181,10 @@ module physical_registers(
                         reg_rdy_table[i] <= 1'b1;
                     end
                 end
+
+                // Making sure the newly assigned reg to be ready
+                reg_rdy_table[not_rdy_reg] <= 1'b1;
+
             end
 
             if (write_alu_rd && target_alu_reg != 0) begin

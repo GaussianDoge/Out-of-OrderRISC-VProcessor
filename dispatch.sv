@@ -138,13 +138,13 @@ module dispatch(
     wire dispatch_handshake = valid_in && ready_in;
 
     assign alu_nr_reg_out = data_in.pd_new;
-    assign alu_nr_valid_out = dispatch_handshake && is_alu && (data_in.pd_new != 7'd0);
+    assign alu_nr_valid_out = dispatch_handshake && is_alu && (data_in.pd_new != 7'd0) && !mispredict;
 
     assign b_nr_reg_out = data_in.pd_new;
-    assign b_nr_valid_out = dispatch_handshake && is_b && (data_in.pd_new != 7'd0);
+    assign b_nr_valid_out = dispatch_handshake && is_b && (data_in.pd_new != 7'd0) && !mispredict;
 
     assign lsu_nr_reg_out = data_in.pd_new;
-    assign lsu_nr_valid_out = dispatch_handshake && is_mem && (data_in.pd_new != 7'd0);
+    assign lsu_nr_valid_out = dispatch_handshake && is_mem && (data_in.pd_new != 7'd0) && !mispredict;
 
     assign lsq_alloc_valid_out = (dispatch_packet.Opcode == 7'b0000011 || dispatch_packet.Opcode == 7'b0100011) && dispatch_handshake;
 

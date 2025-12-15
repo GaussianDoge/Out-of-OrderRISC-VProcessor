@@ -37,25 +37,22 @@ module checkpoint(
                         break;
                     end
                 end
-            end else begin
-                if (branch_detect) begin
-                    for (int i = 0; i < 4; i++) begin
-                        if (!chkpt[i].valid) begin
-                            chkpt[i].valid <= 1'b1;
-                            chkpt[i].pc <= branch_pc;
-                            chkpt[i].rob_tag <= branch_rob_tag;
-                            chkpt[i].reset_reg_rdy_table <= '0;
-                            break; // Stop after filling one slot
-                        end
-                    end
-                end
-
+            end else if (branch_detect) begin
                 for (int i = 0; i < 4; i++) begin
-                    if (chkpt[i].valid && not_rdy_pr_valid) begin
-                        chkpt[i].reset_reg_rdy_table[not_rdy_pr] <= 1'b1;
+                    if (!chkpt[i].valid) begin
+                        chkpt[i].valid <= 1'b1;
+                        chkpt[i].pc <= branch_pc;
+                        chkpt[i].rob_tag <= branch_rob_tag;
+                        chkpt[i].reset_reg_rdy_table <= '0;
+                        break; // Stop after filling one slot
                     end
                 end
-                
+            end
+
+            for (int i = 0; i < 4; i++) begin
+                if (chkpt[i].valid && not_rdy_pr_valid) begin
+                    chkpt[i].reset_reg_rdy_table[not_rdy_pr] <= 1'b1;
+                end
             end
         end
     end
