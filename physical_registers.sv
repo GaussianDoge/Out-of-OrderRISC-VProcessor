@@ -1,8 +1,14 @@
 `timescale 1ns / 1ps
+import types_pkg::*;
 
 module physical_registers(
     input logic clk,
     input logic reset,
+
+    // Mispredict
+    input logic mispredict,
+    input logic checkpoint_valid,
+    input checkpoint checkpoint,
 
     // Write and read (three ports for 3 FUs)
     // For ALU read r1 and r2, and write rd
@@ -77,11 +83,16 @@ module physical_registers(
     input logic branch_set_not_rdy,
     input logic [6:0] alu_rd,
     input logic [6:0] lsu_rd,
-    input logic [6:0] branch_rd
+    input logic [6:0] branch_rd,
+
+    // Snap shot for checkpoint
+    output reg [127:0] reg_rdy_sanp_shot
     );
     
     reg [127:0][31:0] phy_reg;
     reg [127:0] reg_rdy_table;
+
+    assign reg_rdy_snap_shot = reg_rdy_table;
     
     
     always_comb begin
@@ -163,38 +174,43 @@ module physical_registers(
             end
         end else begin
             // Write for ALU
-            if (write_alu_rd && target_alu_reg != 0) begin
-                // write only => automatically set reg to ready
-                phy_reg[target_alu_reg] <= write_alu_data;
-                reg_rdy_table[target_alu_reg] <= 1'b1;
-                rdy_reg1 <= target_alu_reg;
-                reg1_rdy_valid <= 1'b1;
+            if (mispredict) begin
+                if (checkpoint_valide) begin
+                    reg_rdy_table <= checkpoint.reg_rdy_table;
+                end
             end else begin
-                reg1_rdy_valid <= 1'b0;
+                if (write_alu_rd && target_alu_reg != 0) begin
+                    // write only => automatically set reg to ready
+                    phy_reg[target_alu_reg] <= write_alu_data;
+                    reg_rdy_table[target_alu_reg] <= 1'b1;
+                    rdy_reg1 <= target_alu_reg;
+                    reg1_rdy_valid <= 1'b1;
+                end else begin
+                    reg1_rdy_valid <= 1'b0;
+                end
+                
+                // Write for Branch Unit
+                if (write_b_rd && target_b_reg != 0) begin
+                    // write only => automatically set reg to ready
+                    phy_reg[target_b_reg] <= write_b_data;
+                    reg_rdy_table[target_b_reg] <= 1'b1;
+                    rdy_reg2 <= target_b_reg;
+                    reg2_rdy_valid <= 1'b1;
+                end else begin
+                    reg2_rdy_valid <= 1'b0;
+                end
+                
+                // Write for LRU
+                if (write_lru_rd && target_lru_reg != 0) begin
+                    // write only => automatically set reg to ready
+                    phy_reg[target_lru_reg] <= write_lru_data;
+                    reg_rdy_table[target_lru_reg] <= 1'b1;
+                    rdy_reg3 <= target_lru_reg;
+                    reg3_rdy_valid <= 1'b1;
+                end else begin
+                    reg3_rdy_valid <= 1'b0;
+                end
             end
-            
-            // Write for Branch Unit
-            if (write_b_rd && target_b_reg != 0) begin
-                // write only => automatically set reg to ready
-                phy_reg[target_b_reg] <= write_b_data;
-                reg_rdy_table[target_b_reg] <= 1'b1;
-                rdy_reg2 <= target_b_reg;
-                reg2_rdy_valid <= 1'b1;
-            end else begin
-                reg2_rdy_valid <= 1'b0;
-            end
-            
-            // Write for LRU
-            if (write_lru_rd && target_lru_reg != 0) begin
-                // write only => automatically set reg to ready
-                phy_reg[target_lru_reg] <= write_lru_data;
-                reg_rdy_table[target_lru_reg] <= 1'b1;
-                rdy_reg3 <= target_lru_reg;
-                reg3_rdy_valid <= 1'b1;
-            end else begin
-                reg3_rdy_valid <= 1'b0;
-            end
-            
         end
     end
     

@@ -117,4 +117,12 @@ package types_pkg;
         logic store;
         logic valid_data;
     } lsq;
+
+    typedef struct packed {
+        logic valid;
+        logic [31:0] pc;
+        logic [4:0] rob_tag;
+        logic [127:0] reg_rdy_table;
+
+    } checkpoint;
 endpackage 

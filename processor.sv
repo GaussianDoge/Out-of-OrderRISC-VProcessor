@@ -58,6 +58,39 @@ module processor(
         .write_en(rob_retire_valid),
         .rob_data_in(retire_pd_old)
     );
+
+
+    // Check point for recovery
+    logic branch_detect;
+    logic checkpoint_valid;
+    assign branch_detect = rename_data_out.fu_br && rename_valid_out;
+    reg [127:0] reg_rdy_sanp_shot;
+    checkpoint checkpoint;
+
+
+    
+    checkpoint check_point(
+        .clk(clk),
+        .reset(reset),
+
+        // From Rename
+        .branch_detect(branch_detect),
+        .branch_pc(rename_data_out.pc),
+        .branch_rob_tag(rename_data_out.rob_tag),
+
+        // From ROB
+        .mispredict(mispredict),
+        .mispredict_tag(mispredict_tag),
+
+        // From PRF
+        .reg_rdy_snap_shot(reg_rdy_sanp_shot),
+
+        // Output
+        .checkpoint_valid(checkpoint_valid),
+        .snapshot(checkpoint)
+    );
+
+
     
     // Dispatch Stage
     logic alu_issued, b_issued, mem_issued;
@@ -137,6 +170,9 @@ module processor(
         // Global
         .mispredict(mispredict)
     );
+
+    
+
 
     logic [4:0] store_rob_tag;
     logic store_lsq_done;
@@ -291,7 +327,10 @@ module processor(
         // Set Busy (From Dispatch Allocation)
         .alu_set_not_rdy(alu_nr_valid), .alu_rd(alu_nr_reg),
         .lsu_set_not_rdy(lsu_nr_valid), .lsu_rd(lsu_nr_reg),
-        .branch_set_not_rdy(b_nr_valid), .branch_rd(b_nr_reg)
+        .branch_set_not_rdy(b_nr_valid), .branch_rd(b_nr_reg),
+
+        // Snap shot for checkpoint
+        .reg_rdy_sanp_shot(reg_rdy_sanp_shot)
     );
 
     // assign rdy_reg1 = target_alu_reg;
