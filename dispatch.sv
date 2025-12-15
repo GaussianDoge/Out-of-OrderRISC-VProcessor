@@ -62,9 +62,11 @@ module dispatch(
     // Interface with ROB (Status)
     input logic [4:0] rob_tag_in,
     input logic rob_full_in,
+    input logic [4:0] curr_rob_tag,
 
     // Global
-    input logic mispredict
+    input logic mispredict,
+    input logic [4:0] mispredict_tag
 );
 
     // Routing Logic
@@ -234,7 +236,8 @@ module dispatch(
         .instr(dispatch_packet),
         .reg1_rdy(preg1_rdy), .reg2_rdy(preg2_rdy), .reg3_rdy(preg3_rdy),
         .reg1_rdy_valid(preg1_valid), .reg2_rdy_valid(preg2_valid), .reg3_rdy_valid(preg3_valid),
-        .flush(mispredict)
+        .flush(mispredict),
+        .flush_tag(mispredict_tag)
     );
 
     // Branch RS
@@ -249,7 +252,8 @@ module dispatch(
         .instr(dispatch_packet),
         .reg1_rdy(preg1_rdy), .reg2_rdy(preg2_rdy), .reg3_rdy(preg3_rdy),
         .reg1_rdy_valid(preg1_valid), .reg2_rdy_valid(preg2_valid), .reg3_rdy_valid(preg3_valid),
-        .flush(mispredict)
+        .flush(mispredict),
+        .flush_tag(mispredict_tag)
     );
 
     // LSU RS
@@ -264,6 +268,7 @@ module dispatch(
         .instr(dispatch_packet),
         .reg1_rdy(preg1_rdy), .reg2_rdy(preg2_rdy), .reg3_rdy(preg3_rdy),
         .reg1_rdy_valid(preg1_valid), .reg2_rdy_valid(preg2_valid), .reg3_rdy_valid(preg3_valid),
-        .flush(mispredict)
+        .flush(mispredict),
+        .flush_tag(mispredict_tag)
     );
 endmodule

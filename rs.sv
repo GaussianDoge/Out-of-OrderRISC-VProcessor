@@ -25,7 +25,8 @@ module rs(
     input logic reg3_rdy_valid,
     
     // Recover
-    input logic flush
+    input logic flush,
+    input logic [4:0] flush_tag
     );
     
     rs_data [7:0] rs_table;
@@ -71,10 +72,11 @@ module rs(
                 end
             end
         end
+        // ready_in = free_space > 4'b0;
     end
     
     always_ff @(posedge clk) begin
-        if (reset || flush) begin
+        if (reset) begin
             ready_in <= 1'b1;
             valid_out <= 1'b0;
             for (int i = 0; i < 8; i++) begin
@@ -92,6 +94,27 @@ module rs(
                 rs_table[i].func3 <= 3'b0;
                 rs_table[i].func7 <= 7'b0;
                 rs_table[i].pc <= 32'b0;
+            end
+        end else if (flush) begin
+            ready_in <= 1'b1;
+            valid_out <= 1'b0;
+            for (int i = 0; i < 8; i++) begin
+                if (is_younger(rs_table[i].rob_index, flush_tag)) begin
+                    rs_table[i].valid <= 1'b1;
+                    rs_table[i].Opcode <= 7'b0;
+                    rs_table[i].pd <= 7'b0;
+                    rs_table[i].ps1 <= 7'b0;
+                    rs_table[i].ps1_ready <= 1'b0;
+                    rs_table[i].ps2 <= 7'b0;
+                    rs_table[i].ps2_ready <= 1'b0;
+                    rs_table[i].imm <= 32'b0;
+                    rs_table[i].fu <= 2'b0;
+                    rs_table[i].rob_index <= 4'b0;
+                    rs_table[i].age <= 3'b0;
+                    rs_table[i].func3 <= 3'b0;
+                    rs_table[i].func7 <= 7'b0;
+                    rs_table[i].pc <= 32'b0;
+                end
             end
         end else begin           
             // if slot is free, insert instruction
@@ -151,6 +174,16 @@ module rs(
             end
         end
     end
+
+    function automatic logic is_younger(
+        input [4:0] check_tag,    // 5-bit input (MSB is always 0)
+        input [4:0] flush_tag    // 5-bit input (MSB is always 0)
+    );
+        logic [3:0] distance;
+        distance = check_tag[3:0] - flush_tag[3:0];
+        // Use 8 as the limit (Half of ROB size 16)
+        return (distance > 0 && distance < 8);
+    endfunction
     
     
 endmodule
