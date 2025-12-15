@@ -64,7 +64,11 @@ module processor(
    logic branch_detect;
    logic checkpoint_valid;
    assign branch_detect = rename_data_out.fu_br && rename_valid_out;
-   reg [127:0] reg_rdy_snap_shot;
+
+   logic not_rdy_pr_valid;
+   assign not_rdy_pr_valid =  alu_nr_valid || b_nr_valid || lsu_nr_valid;
+   logic [6:0] not_rdy_pr;
+
    checkpoint snapshot_out;
 
 
@@ -77,14 +81,12 @@ module processor(
        .branch_detect(branch_detect),
        .branch_pc(rename_data_out.pc),
        .branch_rob_tag(rename_data_out.rob_tag),
+       .not_rdy_pr(not_rdy_pr),
+       .not_rdy_pr_valid(not_rdy_pr_valid),
 
        // From ROB
        .mispredict(mispredict),
        .mispredict_tag(mispredict_tag),
-       .rd(rename_data_out.pd_new),
-
-       // From PRF
-       .reg_rdy_snap_shot(reg_rdy_snap_shot),
 
        // Output
        .checkpoint_valid(checkpoint_valid),
@@ -154,6 +156,9 @@ module processor(
         .alu_nr_reg_out(alu_nr_reg), .alu_nr_valid_out(alu_nr_valid),
         .b_nr_reg_out(b_nr_reg), .b_nr_valid_out(b_nr_valid),
         .lsu_nr_reg_out(lsu_nr_reg), .lsu_nr_valid_out(lsu_nr_valid),
+
+        // For checkpoint
+        .not_rdy_reg(not_rdy_pr),
 
         // CDB Inputs (For "Lost Wakeup" Check)
         .preg1_rdy(alu_data_out.p_alu), .preg1_valid(alu_data_out.fu_alu_done),
@@ -284,6 +289,11 @@ module processor(
     physical_registers PRF(
         .clk(clk),
         .reset(reset),
+
+        // Mispredict
+        .mispredict(mispredict),
+        .checkpoint_valid(checkpoint_valid),
+        .checkpoint(snapshot_out),
         
         // Read Ports
         .read_alu_r1(read_alu_r1), .read_alu_r2(read_alu_r2),
@@ -329,10 +339,7 @@ module processor(
         // Set Busy (From Dispatch Allocation)
         .alu_set_not_rdy(alu_nr_valid), .alu_rd(alu_nr_reg),
         .lsu_set_not_rdy(lsu_nr_valid), .lsu_rd(lsu_nr_reg),
-        .branch_set_not_rdy(b_nr_valid), .branch_rd(b_nr_reg),
-
-        // Snap shot for checkpoint
-        .reg_rdy_snap_shot(reg_rdy_snap_shot)
+        .branch_set_not_rdy(b_nr_valid), .branch_rd(b_nr_reg)
     );
 
     // assign rdy_reg1 = target_alu_reg;

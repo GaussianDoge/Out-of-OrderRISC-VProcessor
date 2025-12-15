@@ -32,6 +32,7 @@ module rob (
     // Global mispredict 
     output logic mispredict,
     output logic [4:0] mispredict_tag,
+    output logic [31:0] mispredict_pc, 
     output logic [4:0] ptr,
 
     output logic full
@@ -41,6 +42,7 @@ module rob (
 
     assign mispredict = br_mispredict;
     assign mispredict_tag = br_mispredict_tag;
+    assign mispredict_pc = rob_table[br_mispredict_tag];
     rob_data rob_table[0:15];
     
     logic [4:0]  w_ptr, r_ptr;      

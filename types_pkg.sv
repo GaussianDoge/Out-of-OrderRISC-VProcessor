@@ -121,7 +121,7 @@ package types_pkg;
         logic valid;
         logic [31:0] pc;
         logic [4:0] rob_tag;
-        logic [127:0] reg_rdy_table;
+        logic [127:0] reset_reg_rdy_table;
 
     } checkpoint;
 endpackage 

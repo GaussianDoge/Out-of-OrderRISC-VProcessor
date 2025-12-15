@@ -39,6 +39,9 @@ module dispatch(
     output logic [6:0] lsu_nr_reg_out,
     output logic lsu_nr_valid_out,
 
+    // For checkpoint
+    output logic [6:0] not_rdy_reg,
+
     // Interface with PRF (Readiness Query)
     output logic [6:0] query_ps1,
     output logic [6:0] query_ps2,
@@ -164,6 +167,14 @@ module dispatch(
             lsq_dispatch_rob_tag = dispatch_packet.rob_index;
         end else begin
             lsq_dispatch_rob_tag = 5'd0;
+        end
+
+        if (alu_nr_valid_out) begin
+            not_rdy_reg = alu_nr_reg_out;
+        end else if (lsu_nr_valid_out) begin
+            not_rdy_reg = lsu_nr_reg_out;
+        end else if (b_nr_valid_out) begin
+            not_rdy_reg = b_nr_reg_out;
         end
     end
 

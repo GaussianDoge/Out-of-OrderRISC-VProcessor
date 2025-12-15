@@ -10,14 +10,12 @@ module checkpoint(
     input logic branch_detect,
     input logic [31:0] branch_pc,
     input logic [4:0] branch_rob_tag,
+    input logic [6:0] not_rdy_pr,
+    input logic not_rdy_pr_valid,
 
     // From ROB
     input logic mispredict,
     input logic [4:0] mispredict_tag,
-    input logic [6:0] rd,
-
-    // From PRF
-    input logic [127:0] reg_rdy_snap_shot,
 
     // Output
     output logic checkpoint_valid,
@@ -32,16 +30,32 @@ module checkpoint(
         end else begin
 //            checkpoint_valid <= 1'b0;
             // When a new branch is renamed/dispatched
-            if (branch_detect) begin
+            if (mispredict) begin
                 for (int i = 0; i < 4; i++) begin
-                    if (!chkpt[i].valid) begin
-                        chkpt[i].valid <= 1'b1;
-                        chkpt[i].pc <= branch_pc;
-                        chkpt[i].rob_tag <= branch_rob_tag;
-                        chkpt[i].reg_rdy_table <= reg_rdy_snap_shot;
-                        break; // Stop after filling one slot
+                    if (chkpt[i].valid && chkpt[i].rob_tag == mispredict_tag) begin
+                        chkpt[i] <= '0;
+                        break;
                     end
                 end
+            end else begin
+                if (branch_detect) begin
+                    for (int i = 0; i < 4; i++) begin
+                        if (!chkpt[i].valid) begin
+                            chkpt[i].valid <= 1'b1;
+                            chkpt[i].pc <= branch_pc;
+                            chkpt[i].rob_tag <= branch_rob_tag;
+                            chkpt[i].reset_reg_rdy_table <= '0;
+                            break; // Stop after filling one slot
+                        end
+                    end
+                end
+
+                for (int i = 0; i < 4; i++) begin
+                    if (chkpt[i].valid && not_rdy_pr_valid) begin
+                        chkpt[i].reset_reg_rdy_table[not_rdy_pr] <= 1'b1;
+                    end
+                end
+                
             end
         end
     end

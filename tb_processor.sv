@@ -86,8 +86,8 @@ module tb_processor;
         logic [6:0] pr_a0, pr_a1;
         logic [31:0] val_a0, val_a1;
     begin
-        pr_a0 = dut.rename_unit.map[5'd8];
-        pr_a1 = dut.rename_unit.map[5'd9];
+        pr_a0 = dut.rename_unit.map[5'd10];
+        pr_a1 = dut.rename_unit.map[5'd11];
         val_a0 = dut.PRF.phy_reg[pr_a0];
         val_a1 = dut.PRF.phy_reg[pr_a1];
 
