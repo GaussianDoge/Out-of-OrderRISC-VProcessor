@@ -38,7 +38,7 @@ module fetch(
     logic valid_in_delayed;
     
     always_ff @(posedge clk) begin
-        if (reset) begin
+        if (reset || mispredict) begin
             valid_in_delayed <= 1'b1;
             pc_prev <= 32'd0;
         end else begin
