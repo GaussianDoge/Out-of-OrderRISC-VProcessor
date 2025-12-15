@@ -56,7 +56,7 @@ module fu_alu_prf_tb;
   localparam logic [6:0] TEST_PD      = 7'd5;
   localparam logic [4:0] TEST_ROB     = 5'd3;
 
-  // DUTs -----------------------------------------------------------------
+  // DUTs ----------------------------------------------------------------
 
   fu_alu u_alu (
     .clk            (clk),
