@@ -61,6 +61,7 @@ package types_pkg;
     
     typedef struct packed {
         logic valid;
+        logic [31:0] pc;
         logic [6:0] Opcode;
         logic [2:0] func3;
         logic [6:0] func7;
@@ -72,7 +73,6 @@ package types_pkg;
         logic [31:0] imm;
         logic [4:0] rob_index;
         logic [1:0] fu;
-        logic [31:0] pc;
         logic [2:0] age;
     } rs_data;
     

@@ -23,15 +23,33 @@ module tb_processor;
     // -----------------------------------------------------------------------
     // This block prints the PC and ROB status every cycle.
     // If the simulation is stuck in a loop, you will see the last printed PC.
+    int count = 1;
     always @(posedge clk) begin
         if (!reset) begin
-            $display("Time: %0t | PC: %h | ROB Head: %0d | ROB Tail: %0d | LSQ Count: %0d", 
-                     $time, 
-                     dut.pc, 
-                     dut.u_rob.head, 
-                     dut.u_rob.ptr,  // Tail/Alloc pointer
-                     dut.dispatch_unit.lsq_dispatch_rob_tag // Or LSQ counter if available
-                    );
+//            $display("Time: %0t | PC: %h | ROB Head: %0d | ROB Tail: %0d | LSQ Count: %0d", 
+//                     $time, 
+//                     dut.pc, 
+//                     dut.u_rob.head, 
+//                     dut.u_rob.ptr,  // Tail/Alloc pointer
+//                     dut.dispatch_unit.lsq_dispatch_rob_tag // Or LSQ counter if available
+//                    );
+            logic [6:0] pr_x7;
+            logic [31:0] val_x7;
+            logic [6:0] pr_x28;
+            logic [31:0] val_x28;
+            
+            pr_x7 = dut.rename_unit.map[5'd7];
+            val_x7 = dut.PRF.phy_reg[pr_x7];
+            
+            
+            pr_x28 = dut.rename_unit.map[5'd28];
+            val_x28 = dut.PRF.phy_reg[pr_x28];
+
+            if (dut.mispredict) begin
+                $display("============= Mispredict #%0d =============", count);
+                $display("X7: phys %0d = 0x%08h (%0d)", pr_x7, val_x7, $signed(val_x7));
+                $display("X28: phys %0d = 0x%08h (%0d)", pr_x28, val_x28, $signed(val_x28));
+            end
         end
     end
 
@@ -86,7 +104,7 @@ module tb_processor;
         logic [6:0] pr_a0, pr_a1;
         logic [31:0] val_a0, val_a1;
     begin
-        pr_a0 = dut.rename_unit.map[5'd10];
+        pr_a0 = dut.rename_unit.map[5'd7];
         pr_a1 = dut.rename_unit.map[5'd11];
         val_a0 = dut.PRF.phy_reg[pr_a0];
         val_a1 = dut.PRF.phy_reg[pr_a1];

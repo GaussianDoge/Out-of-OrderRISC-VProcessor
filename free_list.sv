@@ -68,13 +68,13 @@ parameter int DEPTH = 128
             end else begin
                 // Normal Read (Allocation)
                 if (do_read) begin
-                    r_ptr <= (r_ptr == 127) ? 0 : r_ptr + 1;
+                    r_ptr <= (r_ptr == 127) ? 1 : r_ptr + 1;
                 end
                 
                 // Normal Write (Freeing/Commit)
                 if (do_write) begin
                     list[w_ptr] <= data_in; // CRITICAL: Actually save the ID
-                    w_ptr       <= (w_ptr == 127) ? 0 : w_ptr + 1;
+                    w_ptr       <= (w_ptr == 127) ? 1 : w_ptr + 1;
                 end
             
                 // Counter Update
