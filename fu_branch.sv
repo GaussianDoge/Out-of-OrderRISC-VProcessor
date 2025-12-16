@@ -10,7 +10,7 @@ module fu_branch(
     
     // From RS
     input rs_data data_in,
-    input issued,
+    input logic issued,
     
     // From PRF
     input logic [31:0] ps1_data,
@@ -42,6 +42,7 @@ module fu_branch(
                     data_out.p_b = data_in.pd;
                     data_out.mispredict = 1'b1;
                     data_out.mispredict_tag = data_in.rob_index;
+                    data_out.rob_fu_b = data_in.rob_index;
                 end
             end else if (data_in.Opcode == 7'b1100011) begin
                 if (data_in.func3 == 3'b001) begin // Bne
