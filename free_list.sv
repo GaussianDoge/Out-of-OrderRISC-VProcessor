@@ -38,7 +38,7 @@ parameter int DEPTH = 128
     logic do_write;
     logic do_read;
     
-    assign do_write = write_en && (ctr!=7'd128);
+    assign do_write = write_en && (ctr!=7'd127);
     assign do_read = read_en && (ctr!=0);
     
     logic [6:0] distance;
