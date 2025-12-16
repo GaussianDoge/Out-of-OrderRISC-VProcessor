@@ -139,6 +139,7 @@ module lsq(
                         w_ptr <= miss_ptr;
                     end
                     miss_ptr = (w_ptr == 0) ? 7 : w_ptr - 1;
+                    $display("Flush out PC: %8h", lsq_arr[miss_ptr].pc);
                 end
 
             end else begin
