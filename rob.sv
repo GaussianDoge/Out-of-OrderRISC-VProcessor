@@ -40,9 +40,9 @@ module rob (
 );
 //    assign retired_ptr = r_ptr; 
 
-    assign mispredict = br_mispredict;
-    assign mispredict_tag = br_mispredict_tag;
-    assign mispredict_pc = rob_table[br_mispredict_tag].pc;
+    // assign mispredict = br_mispredict;
+    // assign mispredict_tag = br_mispredict_tag;
+    // assign mispredict_pc = rob_table[br_mispredict_tag].pc;
     rob_data rob_table[0:15];
     
     logic [3:0]  w_ptr, r_ptr;      
@@ -64,6 +64,9 @@ module rob (
             w_ptr    <= '0;
             r_ptr    <= '0;
             ctr      <= '0;
+            mispredict <= 0;
+            mispredict_tag <= '0;
+            mispredict_pc <= '0;
             for (int i = 0; i < 16; i++) begin
                 rob_table[i] <= '0;
             end
@@ -87,6 +90,9 @@ module rob (
                 automatic logic [3:0] old_w = w_ptr;            
                 automatic logic [3:0] re_ptr = (br_mispredict_tag==15)?0:br_mispredict_tag+1;  
                 automatic logic [3:0] newcnt = (re_ptr >= r_ptr) ? (re_ptr - r_ptr) : (4'd15 - r_ptr + re_ptr);
+                mispredict <= br_mispredict;
+                mispredict_tag <= br_mispredict_tag;
+                mispredict_pc <= rob_table[br_mispredict_tag].pc;
         
                 for (logic [3:0] i=re_ptr; i!=old_w; i=(i==15)?0:i+1) begin
                     rob_table[i] <= '0;
@@ -98,6 +104,9 @@ module rob (
             else begin
                 // inform reservation station an instruction is retired, 
                 // also reset that row in the table, advance r_ptr by 1
+                mispredict <= 0;
+                mispredict_tag <= '0;
+                mispredict_pc <= '0;
                 if (do_retire) begin
                     preg_old <= rob_table[r_ptr].pd_old;
                     valid_retired <= 1'b1;
