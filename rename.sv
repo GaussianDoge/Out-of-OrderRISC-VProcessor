@@ -53,6 +53,9 @@ module rename(
     logic [6:0] w_ptr_list;
     logic [0:127] [6:0] list;
     logic [0:31] [6:0] map;
+
+    logic capture;
+    logic [4:0] index;
     
 
     // Speculation is 1 when we encounter a branch instruction
@@ -90,6 +93,8 @@ module rename(
             valid_out <= 1'b0;
             pre_pc <= 32'b1;
             checkpoint <= '0;
+            capture <= 1'b0;
+            index <= '0;
         end else begin
             if (valid_out && ready_out) begin
                 valid_out <= 1'b0;
@@ -100,6 +105,9 @@ module rename(
                 // re_ctr <= ctr;
                 // re_r_ptr <= r_ptr_list;
                 // re_w_ptr <= w_ptr_list;
+
+                capture <= jalr;
+
                 for (int i = 0; i < 4; i++) begin
                     if (!checkpoint[i].valid) begin
                         checkpoint[i].valid <= 1'b1;
@@ -109,13 +117,26 @@ module rename(
                         checkpoint[i].re_map <= map;
                         checkpoint[i].re_list <= list;
                         checkpoint[i].re_ctr <= ctr;
-                        checkpoint[i].re_r_ptr <= r_ptr_list;
+                        checkpoint[i].re_r_ptr <= (r_ptr_list == 127) ? 1 : r_ptr_list + 1;
                         checkpoint[i].re_w_ptr <= w_ptr_list;
+
+                        index <= i;
                         break; // Stop after filling one slot
                     end 
                 end
-
             end
+
+            if (capture) begin
+
+                checkpoint[index].re_map <= map;
+                //checkpoint[index].re_list <= list;
+                //checkpoint[index].re_ctr <= ctr;
+                //checkpoint[index].re_r_ptr <= r_ptr_list;
+                //checkpoint[index].re_w_ptr <= w_ptr_list;
+
+                capture <= 1'b0;
+            end
+
             if (mispredict || hit) begin
                 for (int i = 0; i < 5; i++) begin
                     if (checkpoint[i].valid && checkpoint[i].rob_tag == mispredict_tag) begin
