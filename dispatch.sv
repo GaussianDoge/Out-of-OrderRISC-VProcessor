@@ -30,6 +30,7 @@ module dispatch(
     // LSQ
     output logic lsq_alloc_valid_out,
     output logic [4:0] lsq_dispatch_rob_tag,
+    output logic [31:0] lsq_dispatch_pc,
 
     // Interface with PRF (Set Busy / Allocation)
     output logic [6:0] alu_nr_reg_out,
@@ -147,7 +148,7 @@ module dispatch(
     assign lsu_nr_reg_out = data_in.pd_new;
     assign lsu_nr_valid_out = dispatch_handshake && is_mem && (data_in.pd_new != 7'd0) && !mispredict;
 
-    assign lsq_alloc_valid_out = (dispatch_packet.Opcode == 7'b0000011 || dispatch_packet.Opcode == 7'b0100011) && dispatch_handshake;
+    assign lsq_alloc_valid_out = (data_in.Opcode == 7'b0000011 || data_in.Opcode == 7'b0100011) && dispatch_handshake;
 
     // Priority Logic
     rename_data active_packet;
@@ -165,9 +166,11 @@ module dispatch(
 
         // LSQ dispatch rob tag
         if (lsq_alloc_valid_out) begin
-            lsq_dispatch_rob_tag = dispatch_packet.rob_index;
+            lsq_dispatch_rob_tag = data_in.rob_tag;
+            lsq_dispatch_pc = data_in.pc;
         end else begin
-            lsq_dispatch_rob_tag = 5'd0;
+            lsq_dispatch_rob_tag = '0;
+            lsq_dispatch_pc = '0;
         end
 
         if (alu_nr_valid_out) begin
@@ -274,7 +277,7 @@ module dispatch(
     rs u_lsu_rs (
         .clk(clk),
         .reset(reset),
-        .fu_rdy(lsu_rs_ready_in),
+        .fu_rdy(1'b1),
         .valid_out(lsu_rs_valid_out),
         .data_out(lsu_rs_data_out),
         .valid_in(lsu_rs_write_en),

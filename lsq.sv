@@ -8,6 +8,7 @@ module lsq(
     // From RS_mem dispatch buffer (insert S-type in orders)
     input logic [4:0] dispatch_rob_tag,
     input logic dispatch_valid,
+    input logic [31:0] dispatch_pc,
     
     // From FU_mem
     input logic [31:0] ps1_data,
@@ -15,6 +16,7 @@ module lsq(
     input logic mispredict,
     input logic [4:0] mispredict_tag,
     input logic [4:0] curr_rob_tag,
+    input logic [31:0] mispredict_pc,
     
     // From PRF 
     input logic [31:0] ps2_data,
@@ -45,7 +47,7 @@ module lsq(
     // Retirement
     output logic [4:0] store_rob_tag, // for lsq writeback
     output logic store_lsq_done,
-    output logic full
+    output logic tag_full
 );
     lsq lsq_arr[0:7];
     logic [2:0] w_ptr; // write pointer points to the next free entry
@@ -55,7 +57,15 @@ module lsq(
     logic [31:0] addr;
     assign addr = ps1_data + imm_in;
     
-    assign full = (ctr == 8);
+    // assign full = (ctr == 7);
+    assign tag_full = (lsq_arr[0].valid)
+                    && (lsq_arr[1].valid)
+                    && (lsq_arr[2].valid)
+                    && (lsq_arr[3].valid)
+                    && (lsq_arr[4].valid)
+                    && (lsq_arr[5].valid)
+                    && (lsq_arr[6].valid)
+                    && (lsq_arr[7].valid);
 
     logic incompleted_load;
     logic unissued_store;
@@ -79,92 +89,101 @@ module lsq(
             store_wb <= 1'b0;
             data_out <= '0;
             if (mispredict) begin
-                automatic logic [4:0] ptr = (mispredict_tag == 15) ? 0 : mispredict_tag + 1;
-                automatic logic [3:0] new_ctr = '0;
+                // automatic logic [4:0] ptr = (mispredict_tag == 15) ? 0 : mispredict_tag + 1;
+                // automatic logic [3:0] new_ctr = '0;
 
-                for (logic [4:0] i = ptr; i != curr_rob_tag; i=(i==15)?0:i+1) begin
-                    for (logic [4:0] j = 0; j <= 7; j++) begin
-                        if (lsq_arr[j].valid && i == lsq_arr[j].rob_tag) begin
-                            lsq_arr[j] = '0;
-                        end
+                // for (logic [4:0] i = ptr; i != curr_rob_tag; i=(i==15)?0:i+1) begin
+                //     for (logic [4:0] j = 0; j <= 7; j++) begin
+                //         if (lsq_arr[j].valid && i == lsq_arr[j].rob_tag) begin
+                //             lsq_arr[j] <= '0;
+                //         end
+                //     end
+                // end
+                
+                // for (logic [4:0] i = 0; i <= 7; i++) begin
+                //     if (lsq_arr[i].valid) begin
+                //         new_ctr++;
+                //     end
+                // end
+                
+                // if (new_ctr == 0) begin
+                //     ctr   <= 0;
+                //     r_ptr <= w_ptr;
+                // end else begin
+                //     ctr <= new_ctr;
+                // end
+
+                logic [2:0] miss_ptr;
+                miss_ptr = r_ptr;
+                for (int i = 0; i < 8; i++) begin
+                    if (lsq_arr[i].pc <= mispredict_pc) begin
+                        lsq_arr[i] <= '0;
                     end
                 end
-                
-                for (logic [4:0] i = 0; i <= 7; i++) begin
-                    if (lsq_arr[i].valid) begin
-                        new_ctr++;
-                    end
+            end else begin
+                store_lsq_done <= 1'b0;
+
+                // Reserve position for load and store in LSQ in order (from dispatch buffer)
+                if (dispatch_valid && !tag_full) begin
+                    lsq_arr[w_ptr].valid <= 1'b1;
+                    lsq_arr[w_ptr].addr <= '0;
+                    lsq_arr[w_ptr].pc <= dispatch_pc;
+                    lsq_arr[w_ptr].rob_tag <= dispatch_rob_tag;
+                    lsq_arr[w_ptr].ps2_data <= '0;
+                    lsq_arr[w_ptr].pd <= '0;
+                    lsq_arr[w_ptr].sw_sh_signal <= '0;
+                    lsq_arr[w_ptr].valid_data <= 1'b0;
+
+                    // update circular buffer pointers and counter
+                    ctr <= ctr + 1;
+                    w_ptr <= (w_ptr == 7) ? 0 : w_ptr + 1;
                 end
-                
-                if (new_ctr == 0) begin
-                    ctr   <= 0;
-                    r_ptr <= w_ptr;
-                end else begin
-                    ctr <= new_ctr;
-                end
-            end
-            store_lsq_done <= 1'b0;
 
-            // Reserve position for load and store in LSQ in order (from dispatch buffer)
-            if (dispatch_valid && !full) begin
-                lsq_arr[w_ptr].valid <= 1'b1;
-                lsq_arr[w_ptr].addr <= '0;
-                lsq_arr[w_ptr].pc <= '0;
-                lsq_arr[w_ptr].rob_tag <= dispatch_rob_tag;
-                lsq_arr[w_ptr].ps2_data <= '0;
-                lsq_arr[w_ptr].pd <= '0;
-                lsq_arr[w_ptr].sw_sh_signal <= '0;
-                lsq_arr[w_ptr].valid_data <= 1'b0;
+                if (issued) begin
+                    // Update store data in LSQ
+                    for (int i = 0; i <= 7; i++) begin
+                        if (lsq_arr[i].valid 
+                        && !lsq_arr[i].valid_data 
+                        && lsq_arr[i].rob_tag == data_in.rob_index) begin
+                            lsq_arr[i].addr <= ps1_data + imm_in;
+                            lsq_arr[i].pc <= data_in.pc;
+                            lsq_arr[i].ps2_data <= ps2_data;
+                            lsq_arr[i].valid_data <= 1'b1;
+                            lsq_arr[i].pd <= data_in.pd;
+                            lsq_arr[i].func3 <= data_in.func3;
 
-                // update circular buffer pointers and counter
-                ctr <= ctr + 1;
-                w_ptr <= (w_ptr == 7) ? 0 : w_ptr + 1;
-            end
-
-            if (issued) begin
-                // Update store data in LSQ
-                for (int i = 0; i <= 7; i++) begin
-                    if (lsq_arr[i].valid 
-                    && !lsq_arr[i].valid_data 
-                    && lsq_arr[i].rob_tag == data_in.rob_index) begin
-                        lsq_arr[i].addr <= ps1_data + imm_in;
-                        lsq_arr[i].pc <= data_in.pc;
-                        lsq_arr[i].ps2_data <= ps2_data;
-                        lsq_arr[i].valid_data <= 1'b1;
-                        lsq_arr[i].pd <= data_in.pd;
-                        lsq_arr[i].func3 <= data_in.func3;
-
-                        if (data_in.Opcode == 7'b0100011) begin // store
-                            lsq_arr[i].store <= 1'b1;
-                            if (data_in.func3 == 3'b010) begin // sw
-                                lsq_arr[i].sw_sh_signal <= 1'b0;
-                            end else if (data_in.func3 == 3'b001) begin // sh
-                                lsq_arr[i].sw_sh_signal <= 1'b1;
+                            if (data_in.Opcode == 7'b0100011) begin // store
+                                lsq_arr[i].store <= 1'b1;
+                                if (data_in.func3 == 3'b010) begin // sw
+                                    lsq_arr[i].sw_sh_signal <= 1'b0;
+                                end else if (data_in.func3 == 3'b001) begin // sh
+                                    lsq_arr[i].sw_sh_signal <= 1'b1;
+                                end
+                                store_rob_tag <= data_in.rob_index;
+                                store_lsq_done <= 1'b1;
+                            end else begin // load
+                                lsq_arr[i].store <= 1'b0;
                             end
-                            store_rob_tag <= data_in.rob_index;
-                            store_lsq_done <= 1'b1;
-                        end else begin // load
-                            lsq_arr[i].store <= 1'b0;
+                            
                         end
-                        
                     end
-                end
-            end 
-            if (retired) begin
-                if (lsq_arr[r_ptr].valid_data && rob_head == lsq_arr[r_ptr].rob_tag && lsq_arr[r_ptr].store) begin
-                    store_wb <= 1'b1;
-                    data_out <= lsq_arr[r_ptr];
-                    lsq_arr[r_ptr] <= '0;
-                    r_ptr <= (r_ptr == 7) ? 0 : r_ptr + 1;
-                    ctr <= ctr - 1;
-                end else if (lsq_arr[r_ptr].valid_data && rob_head == lsq_arr[r_ptr].rob_tag && !lsq_arr[r_ptr].store) begin
-                    store_wb <= 1'b0;
-                    data_out <= '0;
-                    lsq_arr[r_ptr] <= '0;
-                    r_ptr <= (r_ptr == 7) ? 0 : r_ptr + 1;
-                    ctr <= ctr - 1;
-                end
-            end 
+                end 
+                if (retired) begin
+                    if (lsq_arr[r_ptr].valid_data && rob_head == lsq_arr[r_ptr].rob_tag && lsq_arr[r_ptr].store) begin
+                        store_wb <= 1'b1;
+                        data_out <= lsq_arr[r_ptr];
+                        lsq_arr[r_ptr] <= '0;
+                        r_ptr <= (r_ptr == 7) ? 0 : r_ptr + 1;
+                        ctr <= ctr - 1;
+                    end else if (lsq_arr[r_ptr].valid_data && rob_head == lsq_arr[r_ptr].rob_tag && !lsq_arr[r_ptr].store) begin
+                        store_wb <= 1'b0;
+                        data_out <= '0;
+                        lsq_arr[r_ptr] <= '0;
+                        r_ptr <= (r_ptr == 7) ? 0 : r_ptr + 1;
+                        ctr <= ctr - 1;
+                    end
+                end 
+            end
         end 
     end
 
@@ -273,6 +292,8 @@ module lsq(
     end
     
     logic [2:0] task_temp_ptr;
+    logic [2:0] age;
+    logic [2:0] target_age;
     task automatic forward_load_data(
         input logic [31:0] pc,
         input logic [31:0] addr,
@@ -285,6 +306,17 @@ module lsq(
         begin
             logic task_unissued_store;
             logic dependent;
+            logic [2:0] index;
+            
+            for (int i = 0; i < 8; i++) begin
+                if (lsq_arr[i].rob_tag == rob_index) begin
+                    if (i >= r_ptr) begin
+                        age = 7 - (i - r_ptr);
+                    end else begin
+                        age =  7 - (8 - r_ptr + i);
+                    end
+                end
+            end
 
             load_data = '0;
             dependent = 1'b0;
@@ -297,7 +329,14 @@ module lsq(
             // $display("******************Load PC = %8h ROB = %0d", pc, rob_index);
             for (int i = 0; i <= 7; i++) begin
                 // $display("Checking PC = %8h Rob = %0d", lsq_arr[task_temp_ptr].pc, lsq_arr[task_temp_ptr].rob_tag);
-                if (lsq_arr[task_temp_ptr].pc < pc
+                
+                if (task_temp_ptr >= r_ptr) begin
+                    target_age = 7 - (task_temp_ptr - r_ptr);
+                end else begin
+                    target_age =  7 - (8 - r_ptr + task_temp_ptr);
+                end
+
+                if (target_age > age
                     && lsq_arr[task_temp_ptr].valid_data 
                     && lsq_arr[task_temp_ptr].store) begin
                         // Logic for checking if a load is in the right range (LBU)
@@ -351,13 +390,13 @@ module lsq(
                             // $display("***********************************");
                             // $display("Addr: %0d  Store: %d, Limit: %0d", addr, store_addr, limit);
                         end
-                end else if (lsq_arr[task_temp_ptr].pc < pc && !lsq_arr[task_temp_ptr].valid_data ) begin // unissued pre instructions
+                end else if (target_age > age && !lsq_arr[task_temp_ptr].valid_data ) begin // unissued pre instructions
                     load_from_mem = 1'b0;
                     forward_valid = 1'b0;
                     task_unissued_store = 1'b1;
                     // $display("LSQ: Load Stalled load Rob=%0d due to Rob=%0d", rob_index, lsq_arr[task_temp_ptr].rob_tag);
                     break;
-                end else if (lsq_arr[task_temp_ptr].pc >= pc) begin
+                end else if (target_age <= age) begin
                     load_from_mem = 1'b0;
                     forward_valid = 1'b0;
                     dependent = 1'b0;

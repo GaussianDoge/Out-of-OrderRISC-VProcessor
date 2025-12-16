@@ -9,13 +9,16 @@ module fu_mem(
     // From ROB
     input logic retired,
     input logic [4:0] rob_head,
-    input logic [4:0] dispatch_rob_tag,
+    
     input logic [4:0] curr_rob_tag,
     input logic mispredict,
     input logic [4:0] mispredict_tag,
+    input logic [31:0] mispredict_pc,
     
     // From Dispatch (LSQ Allocation)
     input logic dispatch_valid,
+    input logic [4:0] dispatch_rob_tag,
+    input logic [31:0] lsq_dispatch_pc,
     
     // From RS and PRF
     input logic issued,
@@ -141,6 +144,7 @@ module fu_mem(
         
         .dispatch_rob_tag(dispatch_rob_tag),
         .dispatch_valid(dispatch_valid),
+        .dispatch_pc(lsq_dispatch_pc),
 
         .ps1_data(ps1_data),
         .imm_in(data_in.imm),
@@ -160,6 +164,7 @@ module fu_mem(
         .mispredict(mispredict),
         .mispredict_tag(mispredict_tag),
         .curr_rob_tag(curr_rob_tag),
+        .mispredict_pc(mispredict_pc),
 
         .data_out(lsq_out),
         .data_load(lsq_load),
@@ -174,7 +179,7 @@ module fu_mem(
         .store_rob_tag(store_rob_tag),
         .store_lsq_done(store_lsq_done),
 
-        .full(lsq_full) 
+        .tag_full(lsq_full) 
     );
     
     // Drive Memory only if safe and not FWD

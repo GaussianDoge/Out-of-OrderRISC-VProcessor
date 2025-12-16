@@ -7,6 +7,7 @@ module fus(
     // From Dispatch
     input logic dispatch_valid,
     input logic [4:0] dispatch_rob_tag,
+    input logic [31:0] lsq_dispatch_pc,
     
     // From Reservation Stations
     input logic alu_issued,
@@ -22,6 +23,7 @@ module fus(
     input logic [4:0] curr_rob_tag,
     input logic mispredict,
     input logic [4:0] mispredict_tag,
+    input logic [31:0] mispredict_pc,
     
     // PRF
     input logic [31:0] ps1_alu_data,
@@ -70,13 +72,16 @@ module fus(
         // From ROB
         .retired(retired),
         .rob_head(rob_head),
-        .dispatch_rob_tag(dispatch_rob_tag),
+        
         .curr_rob_tag(curr_rob_tag),
         .mispredict(mispredict),
         .mispredict_tag(mispredict_tag),
+        .mispredict_pc(mispredict_pc),
+        .lsq_dispatch_pc(lsq_dispatch_pc),
 
         // From Dispatch
         .dispatch_valid(dispatch_valid),
+        .dispatch_rob_tag(dispatch_rob_tag),
         
         // From RS and PRF
         .issued(mem_issued),
