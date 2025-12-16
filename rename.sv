@@ -24,10 +24,11 @@ module rename(
     output logic valid_out,
     input logic ready_out
 );
+    logic [31:0] pre_pc;
     wire write_pd = data_in.Opcode != 7'b0100011 
                     && data_in.Opcode != 7'b1100011 
                     && data_in.rd != 5'd0;
-    wire rename_en = ready_in && valid_in;
+    wire rename_en = ready_in && valid_in && pre_pc != data_in.pc;
     wire fl_write_en = write_en && (rob_data_in != 7'b0);
    
     logic read_en;
@@ -50,23 +51,31 @@ module rename(
     logic [6:0] list [0:127];
     logic [6:0] map [0:31];
     
+
     // Speculation is 1 when we encounter a branch instruction
-    wire branch = (data_in.Opcode == 7'b1100011);
+    logic branch;
+    assign branch = (data_in.Opcode == 7'b1100011);
+
+    logic jalr;
+    assign jalr = (data_in.Opcode == 7'b1100111);
         
     assign ready_in = (ready_out || !valid_out) && (!empty || !write_pd);
     assign read_en = write_pd && rename_en;
     assign update_en = write_pd && rename_en;
+
+    
         
     always_ff @(posedge clk or posedge reset) begin
         if (reset) begin
             ctr <= 4'b0;
             data_out <= '0;
             valid_out <= 1'b0;
+            pre_pc <= 32'b1;
         end else begin
             if (valid_out && ready_out) begin
                 valid_out <= 1'b0;
             end
-            if (rename_en && branch) begin
+            if (rename_en && (branch || jalr) && !mispredict) begin
                 re_list <= list;
                 re_map <= map;
                 re_ctr <= ctr;
@@ -91,6 +100,8 @@ module rename(
                 data_out.func3 <= data_in.func3;
                 data_out.func7 <= data_in.func7;
                 valid_out <= 1'b1;
+
+                pre_pc <= data_in.pc;
                 if (write_pd) begin
                     data_out.pd_new <= preg;
                 end else begin

@@ -42,7 +42,7 @@ module rob (
 
     assign mispredict = br_mispredict;
     assign mispredict_tag = br_mispredict_tag;
-    assign mispredict_pc = rob_table[br_mispredict_tag];
+    assign mispredict_pc = rob_table[br_mispredict_tag].pc;
     rob_data rob_table[0:15];
     
     logic [4:0]  w_ptr, r_ptr;      

@@ -10,6 +10,7 @@ module processor(
     logic [31:0] pc;
     logic mispredict;
     logic [4:0] mispredict_tag;
+    logic [31:0] mispredict_pc;
     
     always_ff @(posedge clk) begin
         if (reset) begin
@@ -176,7 +177,8 @@ module processor(
         
         // Global
         .mispredict(mispredict),
-        .mispredict_tag(mispredict_tag)
+        .mispredict_tag(mispredict_tag),
+        .mispredict_pc(mispredict_pc)
     );
 
     
@@ -215,6 +217,7 @@ module processor(
         // Outputs (Global Control & Commit)
         .mispredict(mispredict),
         .mispredict_tag(mispredict_tag),
+        .mispredict_pc(mispredict_pc),
 
         .valid_retired(rob_retire_valid),
         .preg_old(retire_pd_old), // Connect to Rename

@@ -69,7 +69,8 @@ module dispatch(
 
     // Global
     input logic mispredict,
-    input logic [4:0] mispredict_tag
+    input logic [4:0] mispredict_tag,
+    input logic [31:0] mispredict_pc
 );
 
     // Routing Logic
@@ -248,7 +249,8 @@ module dispatch(
         .reg1_rdy(preg1_rdy), .reg2_rdy(preg2_rdy), .reg3_rdy(preg3_rdy),
         .reg1_rdy_valid(preg1_valid), .reg2_rdy_valid(preg2_valid), .reg3_rdy_valid(preg3_valid),
         .flush(mispredict),
-        .flush_tag(mispredict_tag)
+        .flush_tag(mispredict_tag),
+        .flush_pc(mispredict_pc)
     );
 
     // Branch RS
@@ -264,7 +266,8 @@ module dispatch(
         .reg1_rdy(preg1_rdy), .reg2_rdy(preg2_rdy), .reg3_rdy(preg3_rdy),
         .reg1_rdy_valid(preg1_valid), .reg2_rdy_valid(preg2_valid), .reg3_rdy_valid(preg3_valid),
         .flush(mispredict),
-        .flush_tag(mispredict_tag)
+        .flush_tag(mispredict_tag),
+        .flush_pc(mispredict_pc)
     );
 
     // LSU RS
@@ -280,6 +283,7 @@ module dispatch(
         .reg1_rdy(preg1_rdy), .reg2_rdy(preg2_rdy), .reg3_rdy(preg3_rdy),
         .reg1_rdy_valid(preg1_valid), .reg2_rdy_valid(preg2_valid), .reg3_rdy_valid(preg3_valid),
         .flush(mispredict),
-        .flush_tag(mispredict_tag)
+        .flush_tag(mispredict_tag),
+        .flush_pc(mispredict_pc)
     );
 endmodule

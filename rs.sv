@@ -100,7 +100,7 @@ module rs(
             ready_in <= 1'b1;
             valid_out <= 1'b0;
             for (int i = 0; i < 8; i++) begin
-                if (is_younger(rs_table[i].rob_index, flush_tag)) begin
+                if (rs_table[i].pc >= flush_pc) begin
                     rs_table[i].valid <= 1'b1;
                     rs_table[i].Opcode <= 7'b0;
                     rs_table[i].pd <= 7'b0;
@@ -156,6 +156,7 @@ module rs(
                     valid_out <= 1'b1;
                     data_out <= rs_table[i];
                     rs_table[i].valid <= 1'b1;
+                    rs_table[i].pc <= '0;
                     rs_table[i].Opcode <= 7'b0;
                     rs_table[i].pd <= 7'b0;
                     rs_table[i].ps1 <= 7'b0;
@@ -176,15 +177,15 @@ module rs(
         end
     end
 
-    function automatic logic is_younger(
-        input [4:0] check_tag,    // 5-bit input (MSB is always 0)
-        input [4:0] flush_tag    // 5-bit input (MSB is always 0)
-    );
-        logic [3:0] distance;
-        distance = check_tag[3:0] - flush_tag[3:0];
-        // Use 8 as the limit (Half of ROB size 16)
-        return (distance > 0 && distance < 8);
-    endfunction
+    // function automatic logic is_younger(
+    //     input [4:0] check_tag,    // 5-bit input (MSB is always 0)
+    //     input [4:0] flush_tag    // 5-bit input (MSB is always 0)
+    // );
+    //     logic [3:0] distance;
+    //     distance = check_tag[3:0] - flush_tag[3:0];
+    //     // Use 8 as the limit (Half of ROB size 16)
+    //     return (distance > 0 && distance < 8);
+    // endfunction
     
     
 endmodule

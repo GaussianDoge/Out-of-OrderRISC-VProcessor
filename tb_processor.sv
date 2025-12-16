@@ -15,7 +15,7 @@ module tb_processor;
     // Clock generation: 100 MHz (10 ns period)
     initial begin
         clk = 1'b0;
-        forever #5 clk = ~clk;
+        forever #2 clk = ~clk;
     end
 
     // -----------------------------------------------------------------------
@@ -79,7 +79,7 @@ module tb_processor;
 
         // Run for a safe limit
         // Use a loop instead of 'repeat' so we can see progress
-        for (int i = 0; i < 1000; i++) begin
+        for (int i = 0; i < 2000; i++) begin
             @(posedge clk);
             
             // OPTIONAL: Stop if PC hits a weird value (like 0 after start) or specific address
@@ -101,18 +101,21 @@ module tb_processor;
 
     // Task to dump the architectural a0/a1
     task dump_a0_a1;
-        logic [6:0] pr_a0, pr_a1;
-        logic [31:0] val_a0, val_a1;
+        logic [6:0] pr_a0, pr_a1, pr_a2;
+        logic [31:0] val_a0, val_a1, val_a2;
     begin
-        pr_a0 = dut.rename_unit.map[5'd1];
-        pr_a1 = dut.rename_unit.map[5'd8];
+        pr_a0 = dut.rename_unit.map[5'd29];
+        pr_a1 = dut.rename_unit.map[5'd28];
+        pr_a2 = dut.rename_unit.map[5'd8];
         val_a0 = dut.PRF.phy_reg[pr_a0];
         val_a1 = dut.PRF.phy_reg[pr_a1];
+        val_a2 = dut.PRF.phy_reg[pr_a2];
 
         $display("=================================================");
         $display("Register dump at time %0t:", $time);
         $display("  a0 (x10): phys %0d = 0x%08h (%0d)", pr_a0, val_a0, $signed(val_a0));
         $display("  a1 (x11): phys %0d = 0x%08h (%0d)", pr_a1, val_a1, $signed(val_a1));
+        $display("  a1 (x11): phys %0d = 0x%08h (%0d)", pr_a2, val_a2, $signed(val_a2));
         $display("=================================================");
     end
     endtask
