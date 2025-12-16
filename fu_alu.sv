@@ -25,18 +25,7 @@ module fu_alu(
         
         data_out.fu_alu_ready = 1'b1;
         data_out.fu_alu_done = 1'b0;
-        if (mispredict) begin
-            automatic logic [4:0] ptr = (mispredict_tag == 15) ? 0 : mispredict_tag + 1;
-            for (logic [4:0] i = ptr; i != curr_rob_tag; i=(i==15)?0:i+1) begin
-                if (i == data_in.rob_index) begin
-                    data_out.p_alu = '0;
-                    data_out.rob_fu_alu = '0;
-                    data_out.data = '0;
-                    data_out.fu_alu_ready = 1'b1;
-                    data_out.fu_alu_done = 1'b0;
-                end
-            end
-        end else if (issued) begin
+        if (issued) begin
             data_out.p_alu = data_in.pd;
             data_out.rob_fu_alu = data_in.rob_index;
             if (data_in.Opcode == 7'b0010011) begin

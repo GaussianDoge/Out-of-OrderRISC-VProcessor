@@ -91,7 +91,7 @@ module dispatch(
     skid_buffer_struct #(.T(rename_data)) u_buf_alu (
         .clk(clk), .reset(reset),
         .mispredict(mispredict),
-        .valid_in(valid_in && is_alu), 
+        .valid_in(valid_in && is_alu && ready_in), 
         .ready_in(alu_buf_ready_in),
         .data_in(data_in),
         .valid_out(alu_buf_valid_out),
@@ -108,7 +108,7 @@ module dispatch(
     skid_buffer_struct #(.T(rename_data)) u_buf_b (
         .clk(clk), .reset(reset),
         .mispredict(mispredict),
-        .valid_in(valid_in && is_b), 
+        .valid_in(valid_in && is_b && ready_in), 
         .ready_in(b_buf_ready_in), 
         .data_in(data_in),
         .valid_out(b_buf_valid_out),
@@ -125,7 +125,7 @@ module dispatch(
     skid_buffer_struct #(.T(rename_data)) u_buf_lsu (
         .clk(clk), .reset(reset),
         .mispredict(mispredict),
-        .valid_in(valid_in && is_mem), 
+        .valid_in(valid_in && is_mem && ready_in), 
         .ready_in(lsu_buf_ready_in), 
         .data_in(data_in),
         .valid_out(lsu_buf_valid_out),
