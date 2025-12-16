@@ -257,7 +257,7 @@ module dispatch(
     );
 
     // Branch RS
-    rs u_branch_rs (
+    rs_bu u_branch_rs (
         .clk(clk),
         .reset(reset),
         .fu_rdy(b_rs_ready_in),
