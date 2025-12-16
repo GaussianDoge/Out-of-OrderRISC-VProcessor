@@ -26,7 +26,8 @@ module rs(
     
     // Recover
     input logic flush,
-    input logic [4:0] flush_tag
+    input logic [4:0] flush_tag,
+    input logic [31:0] flush_pc
     );
     
     rs_data [7:0] rs_table;

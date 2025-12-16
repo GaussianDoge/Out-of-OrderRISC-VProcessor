@@ -97,6 +97,7 @@ package types_pkg;
         logic fu_b_done;
         logic fu_b_ready;
         logic mispredict;
+        logic hit;
         logic [4:0] mispredict_tag;
         logic jalr_bne_signal;
         logic [31:0] pc;

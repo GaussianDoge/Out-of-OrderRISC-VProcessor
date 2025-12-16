@@ -74,7 +74,7 @@ module rename(
                 re_w_ptr <= w_ptr_list;
             end
             if (mispredict) begin
-                ctr <= re_ctr;
+                ctr <= (re_ctr == 15) ? 0 : re_ctr + 1;
             end else if (rename_en) begin
                 ctr <= (ctr == 15) ? 0 : ctr + 1;
                 data_out.pc <= data_in.pc;

@@ -25,6 +25,7 @@ module fu_branch(
         data_out.fu_b_done = 1'b0;
         data_out.jalr_bne_signal = 1'b0;
         data_out.mispredict = 1'b0;
+        data_out.hit = 1'b0;
         data_out.mispredict_tag = '0;
         data_out.pc = '0;
         data_out.fu_b_ready = 1'b1;
@@ -42,6 +43,7 @@ module fu_branch(
                     data_out.p_b = data_in.pd;
                     data_out.mispredict = 1'b1;
                     data_out.mispredict_tag = data_in.rob_index;
+                    data_out.rob_fu_b = data_in.rob_index;
                 end
             end else if (data_in.Opcode == 7'b1100011) begin
                 if (data_in.func3 == 3'b001) begin // Bne
@@ -51,10 +53,13 @@ module fu_branch(
                         data_out.rob_fu_b = data_in.rob_index;
                         data_out.jalr_bne_signal = 1'b1;
                         data_out.mispredict = 1'b1;
+                        data_out.hit = 1'b0;
                         data_out.mispredict_tag = data_in.rob_index;
                     end else begin 
                         data_out.rob_fu_b = data_in.rob_index;
+                        data_out.mispredict_tag = data_in.rob_index;
                         data_out.mispredict = 1'b0;
+                        data_out.hit = 1'b1;
                         data_out.jalr_bne_signal = 1'b0;
                     end
                 end 

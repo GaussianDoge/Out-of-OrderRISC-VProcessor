@@ -87,6 +87,7 @@ module processor(
        // From ROB
        .mispredict(mispredict),
        .mispredict_tag(mispredict_tag),
+       .hit(b_data_out.hit),
 
        // Output
        .checkpoint_valid(checkpoint_valid),
