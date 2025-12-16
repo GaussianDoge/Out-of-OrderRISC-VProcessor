@@ -23,7 +23,7 @@ module checkpoint(
     output checkpoint snapshot
 );
     // 4 Checkpoints
-    checkpoint [3:0] chkpt;
+    checkpoint [7:0] chkpt;
 
     always_ff @(posedge clk) begin
         if (reset) begin
@@ -32,7 +32,7 @@ module checkpoint(
 //            checkpoint_valid <= 1'b0;
             // When a new branch is renamed/dispatched
             if (mispredict || hit) begin
-                for (int i = 0; i < 4; i++) begin
+                for (int i = 0; i < 8; i++) begin
                     if (chkpt[i].valid && chkpt[i].rob_tag == mispredict_tag) begin
                         chkpt[i] <= '0;
                         break;
@@ -68,7 +68,7 @@ module checkpoint(
         checkpoint_valid = 1'b0;
         if (mispredict) begin
             // Search for the snapshot belonging to the mispredicted branch
-            for (int i = 0; i < 4; i++) begin
+            for (int i = 0; i < 8; i++) begin
                 if (chkpt[i].valid && chkpt[i].rob_tag == mispredict_tag) begin
                     snapshot = chkpt[i];
                     checkpoint_valid = 1'b1;

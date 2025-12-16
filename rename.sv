@@ -72,6 +72,7 @@ module rename(
     
     always_comb begin
         if (mispredict) begin
+            pre_pc = data_in.pc;
             for (int i = 0; i < 5; i++) begin
                 if (checkpoint[i].valid && checkpoint[i].rob_tag == mispredict_tag) begin
                     re_list = checkpoint[i].re_list;
