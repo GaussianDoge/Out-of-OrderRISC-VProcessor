@@ -101,21 +101,28 @@ module tb_processor;
 
     // Task to dump the architectural a0/a1
     task dump_a0_a1;
-        logic [6:0] pr_a0, pr_a1, pr_a2;
-        logic [31:0] val_a0, val_a1, val_a2;
+        logic [6:0] pr_a0, pr_a1, pr_a2, pr_a3, pr_a4;
+        logic [31:0] val_a0, val_a1, val_a2, val_a3, val_a4;
     begin
-        pr_a0 = dut.rename_unit.map[5'd10];
-        pr_a1 = dut.rename_unit.map[5'd11];
-        pr_a2 = dut.rename_unit.map[5'd5];
+        pr_a0 = dut.rename_unit.map[5'd5];
+        pr_a1 = dut.rename_unit.map[5'd6];
+        pr_a2 = dut.rename_unit.map[5'd7];
+        pr_a3 = dut.rename_unit.map[5'd8];
+        pr_a4 = dut.rename_unit.map[5'd29];
+
         val_a0 = dut.PRF.phy_reg[pr_a0];
         val_a1 = dut.PRF.phy_reg[pr_a1];
         val_a2 = dut.PRF.phy_reg[pr_a2];
+        val_a3 = dut.PRF.phy_reg[pr_a3];
+        val_a4 = dut.PRF.phy_reg[pr_a4];
 
         $display("=================================================");
         $display("Register dump at time %0t:", $time);
-        $display("  a0 (x10): phys %0d = 0x%08h (%0d)", pr_a0, val_a0, $signed(val_a0));
-        $display("  a1 (x11): phys %0d = 0x%08h (%0d)", pr_a1, val_a1, $signed(val_a1));
-        $display("  a1 (x11): phys %0d = 0x%08h (%0d)", pr_a2, val_a2, $signed(val_a2));
+        $display("  phys %0d = 0x%08h (%0d)", pr_a0, val_a0, $signed(val_a0));
+        $display("  phys %0d = 0x%08h (%0d)", pr_a1, val_a1, $signed(val_a1));
+        $display("  phys %0d = 0x%08h (%0d)", pr_a2, val_a2, $signed(val_a2));
+        $display("  phys %0d = 0x%08h (%0d)", pr_a3, val_a3, $signed(val_a3));
+        $display("  phys %0d = 0x%08h (%0d)", pr_a4, val_a4, $signed(val_a4));
         $display("=================================================");
     end
     endtask

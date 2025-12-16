@@ -45,13 +45,13 @@ module rob (
     assign mispredict_pc = rob_table[br_mispredict_tag].pc;
     rob_data rob_table[0:15];
     
-    logic [4:0]  w_ptr, r_ptr;      
+    logic [3:0]  w_ptr, r_ptr;      
     assign ptr = w_ptr;
     //assign head = r_ptr;
     
-    logic [4:0]  ctr;            
+    logic [3:0]  ctr;            
     
-    assign full = (ctr == 16); 
+    assign full = (ctr == 15); 
     
     logic do_write;           
     logic do_retire;
@@ -84,11 +84,11 @@ module rob (
             end
             // Mispredict operation
             if (br_mispredict) begin
-                automatic logic [4:0] old_w = w_ptr;            
-                automatic logic [4:0] re_ptr = (br_mispredict_tag==15)?0:br_mispredict_tag+1;  
-                automatic logic [4:0] newcnt = (re_ptr >= r_ptr) ? (re_ptr - r_ptr) : (5'd16 - r_ptr + re_ptr);
+                automatic logic [3:0] old_w = w_ptr;            
+                automatic logic [3:0] re_ptr = (br_mispredict_tag==15)?0:br_mispredict_tag+1;  
+                automatic logic [3:0] newcnt = (re_ptr >= r_ptr) ? (re_ptr - r_ptr) : (4'd15 - r_ptr + re_ptr);
         
-                for (logic [4:0] i=re_ptr; i!=old_w; i=(i==15)?0:i+1) begin
+                for (logic [3:0] i=re_ptr; i!=old_w; i=(i==15)?0:i+1) begin
                     rob_table[i] <= '0;
                 end
                 
@@ -103,7 +103,7 @@ module rob (
                     valid_retired <= 1'b1;
                     head <= r_ptr;
                     rob_table[r_ptr] <= '0;
-                    r_ptr <= (r_ptr == 5'd15) ? 5'b0 : r_ptr + 1;
+                    r_ptr <= (r_ptr == 4'd15) ? 4'b0 : r_ptr + 1;
                 end
                 
                 // Dispatch instruction to ROB
@@ -114,11 +114,11 @@ module rob (
                     rob_table[w_ptr].complete <= 1'b0;
                     rob_table[w_ptr].valid <= 1'b1;
                     rob_table[w_ptr].rob_index <= w_ptr;
-                    w_ptr <= (w_ptr == 5'd15) ? 5'b0 : w_ptr + 1;
+                    w_ptr <= (w_ptr == 4'd15) ? 4'b0 : w_ptr + 1;
                 end
                 unique case ({do_retire, do_write})
-                  2'b10: ctr <= ctr - 5'd1;
-                  2'b01: ctr <= ctr + 5'd1; 
+                  2'b10: ctr <= ctr - 4'd1;
+                  2'b01: ctr <= ctr + 4'd1; 
                   default: ctr <= ctr;     
                 endcase
             end

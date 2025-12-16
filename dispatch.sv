@@ -134,7 +134,7 @@ module dispatch(
     );
 
     // Rename Stall Logic
-    assign ready_in = alu_buf_ready_in && b_buf_ready_in && lsu_buf_ready_in;
+    assign ready_in = alu_buf_ready_in && b_buf_ready_in && lsu_buf_ready_in && (lsu_rs_ready_in || !data_in.fu_mem);
     
     // Pre-buffer set destination to not ready
     wire dispatch_handshake = valid_in && ready_in;
@@ -217,7 +217,7 @@ module dispatch(
         dispatch_packet.pr1       = active_packet.ps1;
         dispatch_packet.pr2       = active_packet.ps2;
         dispatch_packet.imm       = active_packet.imm[31:0];
-        dispatch_packet.rob_index = rob_tag_in;
+        dispatch_packet.rob_index = active_packet.rob_tag;
 
         dispatch_packet.func3     = active_packet.func3;
         dispatch_packet.func7     = active_packet.func7;

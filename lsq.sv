@@ -114,12 +114,33 @@ module lsq(
                 // end
 
                 logic [2:0] miss_ptr;
-                miss_ptr = r_ptr;
-                for (int i = 0; i < 8; i++) begin
-                    if (lsq_arr[i].pc <= mispredict_pc) begin
-                        lsq_arr[i] <= '0;
+
+                if (retired) begin
+                    if (lsq_arr[r_ptr].valid_data && rob_head == lsq_arr[r_ptr].rob_tag && lsq_arr[r_ptr].store) begin
+                        store_wb <= 1'b1;
+                        data_out <= lsq_arr[r_ptr];
+                        lsq_arr[r_ptr] <= '0;
+                        r_ptr <= (r_ptr == 7) ? 0 : r_ptr + 1;
+                        ctr <= ctr - 1;
+                    end else if (lsq_arr[r_ptr].valid_data && rob_head == lsq_arr[r_ptr].rob_tag && !lsq_arr[r_ptr].store) begin
+                        store_wb <= 1'b0;
+                        data_out <= '0;
+                        lsq_arr[r_ptr] <= '0;
+                        r_ptr <= (r_ptr == 7) ? 0 : r_ptr + 1;
+                        ctr <= ctr - 1;
                     end
                 end
+
+                
+                miss_ptr = (w_ptr == 0) ? 7 : w_ptr - 1;
+                for (int i = 0; i < 8; i++) begin
+                    if (lsq_arr[miss_ptr].pc > mispredict_pc) begin
+                        lsq_arr[i] <= '0;
+                        w_ptr <= miss_ptr;
+                    end
+                    miss_ptr = (w_ptr == 0) ? 7 : w_ptr - 1;
+                end
+
             end else begin
                 store_lsq_done <= 1'b0;
 
