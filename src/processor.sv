@@ -4,8 +4,10 @@ import types_pkg::*;
 module processor(
     input logic clk,
     input logic reset,
-    output logic cpu
+    output logic miss
     );
+    
+    assign miss = mispredict;
     
     // General Signals
     logic [31:0] pc;
