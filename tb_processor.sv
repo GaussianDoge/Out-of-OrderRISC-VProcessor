@@ -119,16 +119,16 @@ module tb_processor;
 //    end
 
     // Task to dump the architectural a0/a1
-    logic [2:0] a = 3'b0;
+
     task dump_a0_a1;
         logic [6:0] pr_a0, pr_a1, pr_a2, pr_a3, pr_a4;
         logic [31:0] val_a0, val_a1, val_a2, val_a3, val_a4;
     begin
-        pr_a0 = dut.rename_unit.map[5'd1];
-        pr_a1 = dut.rename_unit.map[5'd6];
-        pr_a2 = dut.rename_unit.map[5'd7];
-        pr_a3 = dut.rename_unit.map[5'd10];
-        pr_a4 = dut.rename_unit.map[5'd11];
+        pr_a0 = dut.rename_unit.map[5'd10];
+        pr_a1 = dut.rename_unit.map[5'd11];
+        pr_a2 = dut.rename_unit.map[5'd20];
+        pr_a3 = dut.rename_unit.map[5'd23];
+        pr_a4 = dut.rename_unit.map[5'd24];
 
         val_a0 = dut.PRF.phy_reg[pr_a0];
         val_a1 = dut.PRF.phy_reg[pr_a1];
@@ -144,7 +144,6 @@ module tb_processor;
         $display("  phys %0d = 0x%08h (%0d)", pr_a3, val_a3, $signed(val_a3));
         $display("  phys %0d = 0x%08h (%0d)", pr_a4, val_a4, $signed(val_a4));
         $display("=================================================");
-        $display("%0d", (a-1));
     end
     endtask
 
