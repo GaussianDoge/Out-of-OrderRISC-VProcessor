@@ -45,13 +45,11 @@ module rename(
     // Recovery
     rename_checkpoint [7:0] checkpoint;
     logic [0:31] [6:0] re_map;
-    logic [0:127] [6:0] re_list;
     logic [6:0] re_r_ptr;
     logic [6:0] re_w_ptr;
     
     logic [6:0] r_ptr_list;
     logic [6:0] w_ptr_list;
-    logic [0:127] [6:0] list;
     logic [0:31] [6:0] map;
 
     logic capture;
@@ -76,7 +74,6 @@ module rename(
             pre_pc = data_in.pc;
             for (int i = 0; i < 8; i++) begin
                 if (checkpoint[i].valid && checkpoint[i].rob_tag == mispredict_tag) begin
-                    re_list = checkpoint[i].re_list;
                     re_map = checkpoint[i].re_map;
                     re_ctr = checkpoint[i].re_ctr;
                     re_r_ptr = checkpoint[i].re_r_ptr;
@@ -103,12 +100,6 @@ module rename(
                 valid_out <= 1'b0;
             end
             if (rename_en && (branch || jalr) && !mispredict) begin
-                // re_list <= list;
-                // re_map <= map;
-                // re_ctr <= ctr;
-                // re_r_ptr <= r_ptr_list;
-                // re_w_ptr <= w_ptr_list;
-
                 capture <= jalr;
 
                 for (int i = 0; i < 8; i++) begin
@@ -118,7 +109,6 @@ module rename(
                         checkpoint[i].rob_tag <= ctr;
 
                         checkpoint[i].re_map <= map;
-                        checkpoint[i].re_list <= list;
                         checkpoint[i].re_ctr <= ctr;
                         checkpoint[i].re_r_ptr <= (r_ptr_list == 127) ? 1 : r_ptr_list + 1;
                         checkpoint[i].re_w_ptr <= w_ptr_list;
@@ -131,10 +121,6 @@ module rename(
 
             if (capture) begin
                 checkpoint[index].re_map <= map;
-                //checkpoint[index].re_list <= list;
-                //checkpoint[index].re_ctr <= ctr;
-                //checkpoint[index].re_r_ptr <= r_ptr_list;
-                //checkpoint[index].re_w_ptr <= w_ptr_list;
                 capture <= 1'b0;
             end
 
@@ -211,11 +197,9 @@ module rename(
         .data_in(rob_data_in),
         .read_en(read_en),
         .empty(empty),
-        .re_list(re_list),
         .re_r_ptr(re_r_ptr),
         .re_w_ptr(re_w_ptr),
         .pd_new_out(preg),
-        .list_out(list),
         .r_ptr_out(r_ptr_list),
         .w_ptr_out(w_ptr_list)
     );

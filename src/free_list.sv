@@ -16,11 +16,9 @@ parameter int DEPTH = 128
     input logic mispredict,
     input logic [6:0] re_r_ptr,
     input logic [6:0] re_w_ptr,
-    input logic [0:DEPTH-1] [6:0] re_list,
 
     output logic [6:0] r_ptr_out,
-    output logic [6:0] w_ptr_out,
-    output logic [0:DEPTH-1] [6:0] list_out 
+    output logic [6:0] w_ptr_out
 );
 
     logic [0:DEPTH-1] [6:0] list;
@@ -30,7 +28,7 @@ parameter int DEPTH = 128
     // Snapshot Outputs
     assign r_ptr_out = r_ptr;
     assign w_ptr_out = w_ptr;
-    assign list_out  = list;
+    //assign list_out  = list;
 
     assign pd_new_out = list[r_ptr];  
     assign empty = (ctr == 0);
@@ -51,9 +49,9 @@ parameter int DEPTH = 128
     end
     always_ff @(posedge clk) begin
         if (reset) begin
-            w_ptr    <= 0;
+            w_ptr    <= 96;
             r_ptr    <= 0;
-            ctr      <= 127;
+            ctr      <= 96;
             // Start allocation at p32 as p0-p31 are reserved for x0-x31
             for (int i = 0; i < DEPTH; i++) begin
                 list[i] <= i + 32;
@@ -63,8 +61,8 @@ parameter int DEPTH = 128
             if (mispredict) begin
                 ctr <= ctr + distance;
                 r_ptr <= re_r_ptr;
-                w_ptr <= re_w_ptr;
-                list  <= re_list;
+                //w_ptr <= re_w_ptr;
+                //list  <= re_list;
             end else begin
                 // Normal Read (Allocation)
                 if (do_read) begin
