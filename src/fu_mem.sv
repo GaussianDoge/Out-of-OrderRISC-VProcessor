@@ -190,9 +190,6 @@ module fu_mem(
         .clk(clk),
         .reset(reset),
         
-        .issued(issued),
-        .data_in(data_in),
-        
         // From LSQ for S-type
         .store_wb(store_wb),
         .lsq_in(lsq_out),

@@ -89,92 +89,81 @@ module lsq(
         end else begin
             store_wb <= 1'b0;
             data_out <= '0;
-            if (mispredict) begin
-                // automatic logic [4:0] ptr = (mispredict_tag == 15) ? 0 : mispredict_tag + 1;
-                // automatic logic [3:0] new_ctr = '0;
+            store_lsq_done <= 1'b0;
 
-                // for (logic [4:0] i = ptr; i != curr_rob_tag; i=(i==15)?0:i+1) begin
-                //     for (logic [4:0] j = 0; j <= 7; j++) begin
-                //         if (lsq_arr[j].valid && i == lsq_arr[j].rob_tag) begin
-                //             lsq_arr[j] <= '0;
-                //         end
-                //     end
-                // end
-                
-                // for (logic [4:0] i = 0; i <= 7; i++) begin
-                //     if (lsq_arr[i].valid) begin
-                //         new_ctr++;
-                //     end
-                // end
-                
-                // if (new_ctr == 0) begin
-                //     ctr   <= 0;
-                //     r_ptr <= w_ptr;
-                // end else begin
-                //     ctr <= new_ctr;
-                // end
+            // Reserve position for load and store in LSQ in order (from dispatch buffer)
+            if (dispatch_valid && !tag_full) begin
+                lsq_arr[w_ptr].valid <= 1'b1;
+                lsq_arr[w_ptr].addr <= '0;
+                lsq_arr[w_ptr].pc <= dispatch_pc;
+                lsq_arr[w_ptr].rob_tag <= dispatch_rob_tag;
+                lsq_arr[w_ptr].ps2_data <= '0;
+                lsq_arr[w_ptr].pd <= '0;
+                lsq_arr[w_ptr].sw_sh_signal <= '0;
+                lsq_arr[w_ptr].valid_data <= 1'b0;
+
+                // update circular buffer pointers and counter
+                ctr <= ctr + 1;
+                w_ptr <= (w_ptr == 7) ? 0 : w_ptr + 1;
+            end
+
+            
+
+            if (issued && ((mispredict && data_in.pc < mispredict_pc) || !mispredict)) begin
+                // Update store data in LSQ
+                for (int i = 0; i <= 7; i++) begin
+                    if (lsq_arr[i].valid 
+                    && !lsq_arr[i].valid_data 
+                    && lsq_arr[i].rob_tag == data_in.rob_index) begin
+                        lsq_arr[i].addr <= ps1_data + imm_in;
+                        lsq_arr[i].pc <= data_in.pc;
+                        lsq_arr[i].ps2_data <= ps2_data;
+                        lsq_arr[i].valid_data <= 1'b1;
+                        lsq_arr[i].pd <= data_in.pd;
+                        lsq_arr[i].func3 <= data_in.func3;
+
+                        if (data_in.Opcode == 7'b0100011) begin // store
+                            lsq_arr[i].store <= 1'b1;
+                            if (data_in.func3 == 3'b010) begin // sw
+                                lsq_arr[i].sw_sh_signal <= 1'b0;
+                            end else if (data_in.func3 == 3'b001) begin // sh
+                                lsq_arr[i].sw_sh_signal <= 1'b1;
+                            end
+                            store_rob_tag <= data_in.rob_index;
+                            store_lsq_done <= 1'b1;
+                        end else begin // load
+                            lsq_arr[i].store <= 1'b0;
+                        end
+                        
+                    end
+                end
+            end
+
+            
+            
+            if (retired) begin
+                if (lsq_arr[r_ptr].valid_data && rob_head == lsq_arr[r_ptr].rob_tag && lsq_arr[r_ptr].store) begin
+                    store_wb <= 1'b1;
+                    data_out <= lsq_arr[r_ptr];
+                    lsq_arr[r_ptr] <= '0;
+                    r_ptr <= (r_ptr == 7) ? 0 : r_ptr + 1;
+                    ctr <= ctr - 1;
+                end else if (lsq_arr[r_ptr].valid_data && rob_head == lsq_arr[r_ptr].rob_tag && !lsq_arr[r_ptr].store) begin
+                    store_wb <= 1'b0;
+                    data_out <= '0;
+                    lsq_arr[r_ptr] <= '0;
+                    r_ptr <= (r_ptr == 7) ? 0 : r_ptr + 1;
+                    ctr <= ctr - 1;
+                end
+            end
+
+            if (mispredict) begin
+
                 logic [2:0] tmp_wptr;
                 logic       stop;
 
                 tmp_wptr = w_ptr;
                 stop     = 1'b0;
-
-
-                if (retired) begin
-                    if (lsq_arr[r_ptr].valid_data && rob_head == lsq_arr[r_ptr].rob_tag && lsq_arr[r_ptr].store) begin
-                        store_wb <= 1'b1;
-                        data_out <= lsq_arr[r_ptr];
-                        lsq_arr[r_ptr] <= '0;
-                        r_ptr <= (r_ptr == 7) ? 0 : r_ptr + 1;
-                        ctr <= ctr - 1;
-                    end else if (lsq_arr[r_ptr].valid_data && rob_head == lsq_arr[r_ptr].rob_tag && !lsq_arr[r_ptr].store) begin
-                        store_wb <= 1'b0;
-                        data_out <= '0;
-                        lsq_arr[r_ptr] <= '0;
-                        r_ptr <= (r_ptr == 7) ? 0 : r_ptr + 1;
-                        ctr <= ctr - 1;
-                    end
-                end
-
-                if (issued && data_in.pc < mispredict_pc) begin
-                    // Update store data in LSQ
-                    for (int i = 0; i <= 7; i++) begin
-                        if (lsq_arr[i].valid 
-                        && !lsq_arr[i].valid_data 
-                        && lsq_arr[i].rob_tag == data_in.rob_index) begin
-                            lsq_arr[i].addr <= ps1_data + imm_in;
-                            lsq_arr[i].pc <= data_in.pc;
-                            lsq_arr[i].ps2_data <= ps2_data;
-                            lsq_arr[i].valid_data <= 1'b1;
-                            lsq_arr[i].pd <= data_in.pd;
-                            lsq_arr[i].func3 <= data_in.func3;
-
-                            if (data_in.Opcode == 7'b0100011) begin // store
-                                lsq_arr[i].store <= 1'b1;
-                                if (data_in.func3 == 3'b010) begin // sw
-                                    lsq_arr[i].sw_sh_signal <= 1'b0;
-                                end else if (data_in.func3 == 3'b001) begin // sh
-                                    lsq_arr[i].sw_sh_signal <= 1'b1;
-                                end
-                                store_rob_tag <= data_in.rob_index;
-                                store_lsq_done <= 1'b1;
-                            end else begin // load
-                                lsq_arr[i].store <= 1'b0;
-                            end
-                            
-                        end
-                    end
-                end 
-
-                
-                // for (int i = 1; i < 8; i++) begin
-                //     if (lsq_arr[w_ptr-i].pc >= mispredict_pc) begin
-                //         lsq_arr[i] <= '0;
-                //         $display("Flush out PC: %8h Larger than PC: %8h", lsq_arr[w_ptr-i].pc, mispredict_pc);
-                //         w_ptr <= w_ptr-i;
-                //     end
-                // end
-                
 
                 for (int k = 0; k < 8; k++) begin
                     logic [2:0] last;
@@ -193,75 +182,6 @@ module lsq(
                 end
 
                 w_ptr <= tmp_wptr;                 // update once
-
-                
-
-                
-
-
-            end else begin
-                store_lsq_done <= 1'b0;
-
-                // Reserve position for load and store in LSQ in order (from dispatch buffer)
-                if (dispatch_valid && !tag_full) begin
-                    lsq_arr[w_ptr].valid <= 1'b1;
-                    lsq_arr[w_ptr].addr <= '0;
-                    lsq_arr[w_ptr].pc <= dispatch_pc;
-                    lsq_arr[w_ptr].rob_tag <= dispatch_rob_tag;
-                    lsq_arr[w_ptr].ps2_data <= '0;
-                    lsq_arr[w_ptr].pd <= '0;
-                    lsq_arr[w_ptr].sw_sh_signal <= '0;
-                    lsq_arr[w_ptr].valid_data <= 1'b0;
-
-                    // update circular buffer pointers and counter
-                    ctr <= ctr + 1;
-                    w_ptr <= (w_ptr == 7) ? 0 : w_ptr + 1;
-                end
-
-                if (issued) begin
-                    // Update store data in LSQ
-                    for (int i = 0; i <= 7; i++) begin
-                        if (lsq_arr[i].valid 
-                        && !lsq_arr[i].valid_data 
-                        && lsq_arr[i].rob_tag == data_in.rob_index) begin
-                            lsq_arr[i].addr <= ps1_data + imm_in;
-                            lsq_arr[i].pc <= data_in.pc;
-                            lsq_arr[i].ps2_data <= ps2_data;
-                            lsq_arr[i].valid_data <= 1'b1;
-                            lsq_arr[i].pd <= data_in.pd;
-                            lsq_arr[i].func3 <= data_in.func3;
-
-                            if (data_in.Opcode == 7'b0100011) begin // store
-                                lsq_arr[i].store <= 1'b1;
-                                if (data_in.func3 == 3'b010) begin // sw
-                                    lsq_arr[i].sw_sh_signal <= 1'b0;
-                                end else if (data_in.func3 == 3'b001) begin // sh
-                                    lsq_arr[i].sw_sh_signal <= 1'b1;
-                                end
-                                store_rob_tag <= data_in.rob_index;
-                                store_lsq_done <= 1'b1;
-                            end else begin // load
-                                lsq_arr[i].store <= 1'b0;
-                            end
-                            
-                        end
-                    end
-                end 
-                if (retired) begin
-                    if (lsq_arr[r_ptr].valid_data && rob_head == lsq_arr[r_ptr].rob_tag && lsq_arr[r_ptr].store) begin
-                        store_wb <= 1'b1;
-                        data_out <= lsq_arr[r_ptr];
-                        lsq_arr[r_ptr] <= '0;
-                        r_ptr <= (r_ptr == 7) ? 0 : r_ptr + 1;
-                        ctr <= ctr - 1;
-                    end else if (lsq_arr[r_ptr].valid_data && rob_head == lsq_arr[r_ptr].rob_tag && !lsq_arr[r_ptr].store) begin
-                        store_wb <= 1'b0;
-                        data_out <= '0;
-                        lsq_arr[r_ptr] <= '0;
-                        r_ptr <= (r_ptr == 7) ? 0 : r_ptr + 1;
-                        ctr <= ctr - 1;
-                    end
-                end 
             end
         end 
     end

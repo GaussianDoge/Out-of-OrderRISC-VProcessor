@@ -1,111 +1,145 @@
-`timescale 1ns / 1ps
+`timescale 1ns/1ps
 import types_pkg::*;
 
-module data_memory#(
-parameter int DEPTH = 2048 //204800
+module data_memory #(
+    parameter int BYTE_DEPTH = 102400
 )(
-    input clk,
-    input reset,
-    
-    // From FU Mem
-    //input logic [31:0] addr,
-    input logic issued,
-    input rs_data data_in,
-    
-    // From LSQ for S-type
-    input logic store_wb,
-    input lsq lsq_in,
+    input  logic   clk,
+    input  logic   reset,
 
-    // From LSQ for L-type
-    input logic load_mem,
-    input lsq lsq_load,
-    
-    // Output
+    // store commit
+    input  logic   store_wb,
+    input  lsq     lsq_in,
+
+    // load request
+    input  logic   load_mem,
+    input  lsq     lsq_load,
+
+    // output
     output mem_data data_out,
-    output logic load_ready,
-    output logic valid
+    output logic    load_ready,
+    output logic    valid
 );
-    logic [6:0] Opcode;
-    logic [2:0] func3;
-    logic [4:0] rob_index;
-    assign Opcode = data_in.Opcode;
-    assign func3 = data_in.func3;
-    assign rob_index = data_in.rob_index;
 
-    logic [7:0] data_mem [0:DEPTH]; // 200 KB memory
-    // logic valid_2cycles;
-    logic [31:0] addr_reg;
-    // logic [2:0]  func3_reg;
-    logic [4:0] pre_rob_index;
-    
-    
-    // logic load_issue;
-    // assign load_issue = issued && (Opcode == 7'b0000011) && (pre_rob_index != rob_index);
-        
-    always_ff @(posedge clk or posedge reset) begin
-        if (reset) begin
-            data_out <= '0;
-            valid <= 1'b0;
-            // valid_2cycles <= 1'b0;
-            pre_rob_index <= 5'b11111;
-//            for (int i = 0; i <= DEPTH; i++) begin
-//                data_mem[i] <= '0;
-//            end
-        end else begin
-            valid <= 1'b0;
-            load_ready <= 1'b1;
-            if (store_wb) begin
-                if (lsq_in.sw_sh_signal == 1'b0) begin // sw
-                    data_mem[lsq_in.addr] <= lsq_in.ps2_data[7:0];
-                    data_mem[lsq_in.addr+1] <= lsq_in.ps2_data[15:8];
-                    data_mem[lsq_in.addr+2] <= lsq_in.ps2_data[23:16];
-                    data_mem[lsq_in.addr+3] <= lsq_in.ps2_data[31:24];
-                end else if (lsq_in.sw_sh_signal == 1'b1) begin // sh
-                    data_mem[lsq_in.addr] <= lsq_in.ps2_data[7:0];
-                    data_mem[lsq_in.addr+1] <= lsq_in.ps2_data[15:8];
-                end
-                data_out.fu_mem_ready <= 1'b1;      // free again
-                // no need retire we already done in LSQ
-                // $display("=====================================");
-                // $display("STORE_COMMIT pc=%8h rob=%0d addr=0x%0d data=0x%08h sw_sh=%0d",
-                //     lsq_in.pc, lsq_in.rob_tag[4:0], lsq_in.addr, lsq_in.ps2_data, lsq_in.sw_sh_signal);
-                // $display("M[%0d]=%8h", lsq_in.addr, lsq_in.ps2_data);
-            end 
-            // if (load_issue) begin
-            //     addr_reg  <= addr;
-            //     func3_reg <= func3;
-            // end
-            
-            //valid_2cycles <= load_issue && load_mem;
+    // -------- Word-addressed memory --------
+    localparam int WORD_DEPTH = (BYTE_DEPTH + 3) / 4;
+    localparam int WADDR_BITS = $clog2(WORD_DEPTH);
 
-            // When v2==1, 2 cycles after load_issue, return data
-            if (!store_wb && load_mem && !lsq_load.store && pre_rob_index != lsq_load.rob_tag) begin
-                valid <= 1'b1;
-                load_ready = 1'b0;
-                pre_rob_index <= lsq_load.rob_tag;
-                if (lsq_load.func3 == 3'b100) begin // lbu
-                    data_out.data <= {{24{1'b0}}, data_mem[lsq_load.addr]};
-                    data_out.p_mem <= lsq_load.pd;
-                    data_out.fu_mem_ready <= 1'b1;      // free again
-                    data_out.fu_mem_done  <= 1'b1;      // retire
-                    data_out.rob_fu_mem <= lsq_load.rob_tag;
-                    // $display("=====================================");
-                    // $display("Load Byte Unsigned PC=%8h", lsq_load.pc);
-                    // $display("M[%0d]=%32h", lsq_load.addr, {{24{1'b0}}, data_mem[lsq_load.addr]});
-                end else if (lsq_load.func3 == 3'b010) begin // lw
-                    data_out.data <= {data_mem[lsq_load.addr+3], data_mem[lsq_load.addr+2],
-                                  data_mem[lsq_load.addr+1], data_mem[lsq_load.addr]};
-                    data_out.p_mem <= lsq_load.pd;
-                    data_out.fu_mem_ready <= 1'b1;      // free again
-                    data_out.fu_mem_done  <= 1'b1;      // retire
-                    data_out.rob_fu_mem <= lsq_load.rob_tag;
-                    // $display("=====================================");
-                    // $display("Load Word PC=%8h", lsq_load.pc);
-                    // $display("M[%0d]=%32h", lsq_load.addr, {data_mem[lsq_load.addr+3], data_mem[lsq_load.addr+2],
-                    //               data_mem[lsq_load.addr+1], data_mem[lsq_load.addr]});
+    (* ram_style = "block" *)
+    logic [31:0] mem [0:WORD_DEPTH-1];
+
+    // -----------------------------
+    // Write port (stores)
+    // -----------------------------
+    logic [WADDR_BITS-1:0] waddr;
+    logic [1:0]            woff;
+
+    always_comb begin
+        waddr = lsq_in.addr[WADDR_BITS+1:2];  // word address
+        woff  = lsq_in.addr[1:0];             // byte offset
+    end
+
+    always_ff @(posedge clk) begin
+        if (store_wb) begin
+            // NOTE: This assumes naturally-aligned stores for sw/sh (typical RISC-V).
+            // If you allow unaligned, you must split across two words.
+
+            if (lsq_in.sw_sh_signal == 1'b0) begin
+                // sw: write all bytes
+                mem[waddr][7:0]   <= lsq_in.ps2_data[7:0];
+                mem[waddr][15:8]  <= lsq_in.ps2_data[15:8];
+                mem[waddr][23:16] <= lsq_in.ps2_data[23:16];
+                mem[waddr][31:24] <= lsq_in.ps2_data[31:24];
+            end else begin
+                // sh: write 2 bytes based on addr[1]
+                if (woff[1] == 1'b0) begin
+                    mem[waddr][7:0]   <= lsq_in.ps2_data[7:0];
+                    mem[waddr][15:8]  <= lsq_in.ps2_data[15:8];
+                end else begin
+                    mem[waddr][23:16] <= lsq_in.ps2_data[7:0];
+                    mem[waddr][31:24] <= lsq_in.ps2_data[15:8];
                 end
             end
         end
+    end
+
+    // -----------------------------
+    // Read port (loads) - 1 cycle latency (BRAM-style)
+    // -----------------------------
+    logic                  rd_pending;   // becomes the "valid next cycle" flag
+    logic [WADDR_BITS-1:0] raddr_q;
+    logic [1:0]            roff_q;
+    logic [2:0]            func3_q;
+    logic [4:0]            rob_q;
+    logic [6:0]            pd_q;         // use correct width for your design
+    logic [31:0]           rdata_q;      // REGISTERED memory output (key for BRAM)
+    
+    logic [4:0] pre_rob_index;
+    
+    always_ff @(posedge clk or posedge reset) begin
+      if (reset) begin
+        valid         <= 1'b0;
+        load_ready    <= 1'b1;
+        rd_pending    <= 1'b0;
+        pre_rob_index <= 5'b11111;
+        data_out      <= '0;
+    
+        raddr_q <= '0;
+        roff_q  <= '0;
+        func3_q <= '0;
+        rob_q   <= '0;
+        pd_q    <= '0;
+        rdata_q <= '0;
+    
+      end else begin
+        valid      <= 1'b0;
+        load_ready <= 1'b1;
+    
+        // default: no response next cycle unless we accept a request now
+        rd_pending <= 1'b0;
+    
+        // REQUEST STAGE (cycle N): capture meta AND do sync read into rdata_q
+        if (load_mem && !store_wb && !lsq_load.store && (pre_rob_index != lsq_load.rob_tag)) begin
+          rd_pending    <= 1'b1;  // this will trigger response in cycle N+1
+    
+          raddr_q       <= lsq_load.addr[WADDR_BITS+1:2];
+          roff_q        <= lsq_load.addr[1:0];
+          func3_q       <= lsq_load.func3;
+          rob_q         <= lsq_load.rob_tag;
+          pd_q          <= lsq_load.pd;
+          pre_rob_index <= lsq_load.rob_tag;
+    
+          // THIS is the BRAM-inferable read:
+          // use the request address directly (not mem[raddr_q]) so it's 1-cycle total
+          rdata_q       <= mem[lsq_load.addr[WADDR_BITS+1:2]];
+    
+          load_ready <= 1'b0;
+        end
+    
+        // RESPONSE STAGE (cycle N+1): use registered rdata_q (no mem[] access here!)
+        if (rd_pending) begin
+          valid                <= 1'b1;
+          data_out.fu_mem_ready <= 1'b1;
+          data_out.fu_mem_done  <= 1'b1;
+          data_out.rob_fu_mem   <= rob_q;
+          data_out.p_mem        <= pd_q;
+    
+          unique case (func3_q)
+            3'b010: begin // lw
+              data_out.data <= rdata_q;
+            end
+            3'b100: begin // lbu
+              unique case (roff_q)
+                2'd0: data_out.data <= {24'b0, rdata_q[7:0]};
+                2'd1: data_out.data <= {24'b0, rdata_q[15:8]};
+                2'd2: data_out.data <= {24'b0, rdata_q[23:16]};
+                2'd3: data_out.data <= {24'b0, rdata_q[31:24]};
+              endcase
+            end
+            default: data_out.data <= 32'b0;
+          endcase
+        end
+      end
     end
 
 endmodule
