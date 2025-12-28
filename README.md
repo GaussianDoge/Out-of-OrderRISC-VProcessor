@@ -1,4 +1,4 @@
-# Out-of-Order RISC-V Processor (1‑Wide OoO, SystemVerilog)
+# Out-of-Order RISC-V Processor
 
 ![ECE189](./public/walking-chip-ne555.gif)
 
@@ -7,7 +7,7 @@ Designed for **simulation in Vivado XSim** and **synthesizable RTL** workflows.
 
 ---
 
-## Demo
+## Results
 
 ### Simulation Results (program with multiple stores, loads, and loops)
 ![Simulation Results](./public/simulation_results.png)
@@ -17,13 +17,13 @@ Designed for **simulation in Vivado XSim** and **synthesizable RTL** workflows.
 
 ---
 
-## Block Diagram
+## Processor Design
 
 ![Out-of-Order RISC-V Processor](./public/CPU.png)
 
 ---
 
-## Architecture Overview (mapped to the diagram)
+## Architecture Overview
 
 ### Frontend: ICache → Fetch → Decode
 - **I‑Cache (BRAM):** supplies instructions to **Fetch**.
